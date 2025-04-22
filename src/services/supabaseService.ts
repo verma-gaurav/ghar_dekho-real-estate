@@ -47,8 +47,9 @@ export const addProperty = async (propertyData: Omit<Property, "id" | "createdAt
   };
   
   try {
-    const { error } = await supabase
-      .from('properties')
+    // Type assertion to any to bypass TypeScript errors with Supabase types
+    const { error } = await (supabase
+      .from('properties') as any)
       .insert(newProperty);
       
     if (error) throw error;
@@ -56,8 +57,8 @@ export const addProperty = async (propertyData: Omit<Property, "id" | "createdAt
     // Update the user's listedProperties if applicable
     if (propertyData.postedBy?.id) {
       // First get current user data
-      const { data: userData, error: userError } = await supabase
-        .from('users')
+      const { data: userData, error: userError } = await (supabase
+        .from('users') as any)
         .select('listedProperties')
         .eq('id', propertyData.postedBy.id)
         .single();
@@ -67,8 +68,8 @@ export const addProperty = async (propertyData: Omit<Property, "id" | "createdAt
       const listedProperties = userData?.listedProperties || [];
       
       // Then update with the new property ID
-      await supabase
-        .from('users')
+      await (supabase
+        .from('users') as any)
         .update({
           listedProperties: [...listedProperties, id]
         })
@@ -84,8 +85,8 @@ export const addProperty = async (propertyData: Omit<Property, "id" | "createdAt
 
 export const getAllProperties = async (): Promise<Property[]> => {
   try {
-    const { data, error } = await supabase
-      .from('properties')
+    const { data, error } = await (supabase
+      .from('properties') as any)
       .select('*');
       
     if (error) throw error;
@@ -98,8 +99,8 @@ export const getAllProperties = async (): Promise<Property[]> => {
 
 export const getPropertyById = async (id: string): Promise<Property> => {
   try {
-    const { data, error } = await supabase
-      .from('properties')
+    const { data, error } = await (supabase
+      .from('properties') as any)
       .select('*')
       .eq('id', id)
       .single();
@@ -114,8 +115,8 @@ export const getPropertyById = async (id: string): Promise<Property> => {
 
 export const updateProperty = async (id: string, updates: Partial<Property>): Promise<Property> => {
   try {
-    const { data, error } = await supabase
-      .from('properties')
+    const { data, error } = await (supabase
+      .from('properties') as any)
       .update({
         ...updates,
         updatedAt: new Date().toISOString()
@@ -134,7 +135,7 @@ export const updateProperty = async (id: string, updates: Partial<Property>): Pr
 
 export const filterProperties = async (filters: any): Promise<Property[]> => {
   try {
-    let query = supabase.from('properties').select('*');
+    let query = (supabase.from('properties') as any).select('*');
     
     // Filter by purpose (buy/rent/pg)
     if (filters.purpose) {
@@ -172,8 +173,8 @@ export const filterProperties = async (filters: any): Promise<Property[]> => {
 // User related services
 export const getUserData = async (userId: string): Promise<User> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
+    const { data, error } = await (supabase
+      .from('users') as any)
       .select('*')
       .eq('id', userId)
       .single();
@@ -189,22 +190,23 @@ export const getUserData = async (userId: string): Promise<User> => {
 export const toggleSavedProperty = async (userId: string, propertyId: string): Promise<boolean> => {
   try {
     // First, check if property is already saved by this user
-    const { data: user, error: fetchError } = await supabase
-      .from('users')
+    const { data: user, error: fetchError } = await (supabase
+      .from('users') as any)
       .select('savedProperties')
       .eq('id', userId)
       .single();
       
     if (fetchError) throw fetchError;
     
+    // Use optional chaining and provide default empty array
     const savedProperties = user?.savedProperties || [];
     const isAlreadySaved = savedProperties.includes(propertyId);
     
     // Update user's savedProperties array based on current state
     if (isAlreadySaved) {
       // Remove property if already saved
-      const { error: updateError } = await supabase
-        .from('users')
+      const { error: updateError } = await (supabase
+        .from('users') as any)
         .update({
           savedProperties: savedProperties.filter(id => id !== propertyId)
         })
@@ -214,8 +216,8 @@ export const toggleSavedProperty = async (userId: string, propertyId: string): P
       return false;
     } else {
       // Add property if not saved
-      const { error: updateError } = await supabase
-        .from('users')
+      const { error: updateError } = await (supabase
+        .from('users') as any)
         .update({
           savedProperties: [...savedProperties, propertyId]
         })
@@ -233,21 +235,21 @@ export const toggleSavedProperty = async (userId: string, propertyId: string): P
 export const getSavedProperties = async (userId: string): Promise<Property[]> => {
   try {
     // First get the user's saved property IDs
-    const { data: user, error: userError } = await supabase
-      .from('users')
+    const { data: user, error: userError } = await (supabase
+      .from('users') as any)
       .select('savedProperties')
       .eq('id', userId)
       .single();
       
     if (userError) throw userError;
     
-    if (!user?.savedProperties || user.savedProperties.length === 0) {
+    if (!user || !user.savedProperties || user.savedProperties.length === 0) {
       return [];
     }
     
     // Then fetch the actual properties
-    const { data, error } = await supabase
-      .from('properties')
+    const { data, error } = await (supabase
+      .from('properties') as any)
       .select('*')
       .in('id', user.savedProperties);
       
@@ -262,8 +264,8 @@ export const getSavedProperties = async (userId: string): Promise<Property[]> =>
 // Create or update a user record
 export const createOrUpdateUser = async (userData: Partial<User>): Promise<User> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
+    const { data, error } = await (supabase
+      .from('users') as any)
       .upsert(userData)
       .select()
       .single();

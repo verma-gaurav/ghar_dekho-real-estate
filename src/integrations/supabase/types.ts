@@ -9,7 +9,195 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      inquiries: {
+        Row: {
+          contact_info: Json
+          created_at: string
+          id: string
+          message: string
+          property_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contact_info: Json
+          created_at?: string
+          id?: string
+          message: string
+          property_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contact_info?: Json
+          created_at?: string
+          id?: string
+          message?: string
+          property_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inquiries_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inquiries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      properties: {
+        Row: {
+          amenities: string[] | null
+          available_from: string | null
+          created_at: string
+          description: string
+          details: Json
+          features: Json | null
+          id: string
+          images: string[] | null
+          lease_duration: number | null
+          location: Json
+          maintenance_fee: number | null
+          notice_period: number | null
+          parking: Json | null
+          posted_by: Json
+          preferred_tenants: string[] | null
+          price: number
+          property_score: number
+          purpose: string
+          security_deposit: number | null
+          sub_type: string | null
+          title: string
+          type: string
+          updated_at: string
+          videos: string[] | null
+          views: number
+        }
+        Insert: {
+          amenities?: string[] | null
+          available_from?: string | null
+          created_at?: string
+          description: string
+          details: Json
+          features?: Json | null
+          id?: string
+          images?: string[] | null
+          lease_duration?: number | null
+          location: Json
+          maintenance_fee?: number | null
+          notice_period?: number | null
+          parking?: Json | null
+          posted_by: Json
+          preferred_tenants?: string[] | null
+          price: number
+          property_score?: number
+          purpose: string
+          security_deposit?: number | null
+          sub_type?: string | null
+          title: string
+          type: string
+          updated_at?: string
+          videos?: string[] | null
+          views?: number
+        }
+        Update: {
+          amenities?: string[] | null
+          available_from?: string | null
+          created_at?: string
+          description?: string
+          details?: Json
+          features?: Json | null
+          id?: string
+          images?: string[] | null
+          lease_duration?: number | null
+          location?: Json
+          maintenance_fee?: number | null
+          notice_period?: number | null
+          parking?: Json | null
+          posted_by?: Json
+          preferred_tenants?: string[] | null
+          price?: number
+          property_score?: number
+          purpose?: string
+          security_deposit?: number | null
+          sub_type?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+          videos?: string[] | null
+          views?: number
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          email_verified: boolean
+          id: string
+          inquiries: string[] | null
+          listed_properties: string[] | null
+          name: string
+          phone: string
+          phone_verified: boolean
+          saved_properties: string[] | null
+          saved_searches: Json[] | null
+          terms_accepted: boolean
+          terms_accepted_at: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          email_verified?: boolean
+          id: string
+          inquiries?: string[] | null
+          listed_properties?: string[] | null
+          name: string
+          phone: string
+          phone_verified?: boolean
+          saved_properties?: string[] | null
+          saved_searches?: Json[] | null
+          terms_accepted?: boolean
+          terms_accepted_at?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          email_verified?: boolean
+          id?: string
+          inquiries?: string[] | null
+          listed_properties?: string[] | null
+          name?: string
+          phone?: string
+          phone_verified?: boolean
+          saved_properties?: string[] | null
+          saved_searches?: Json[] | null
+          terms_accepted?: boolean
+          terms_accepted_at?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
