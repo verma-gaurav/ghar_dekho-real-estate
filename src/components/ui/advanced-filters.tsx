@@ -116,7 +116,7 @@ export function AdvancedFilters({ purpose, onApplyFilters }: AdvancedFiltersProp
   
   // Reset all filters
   const resetFilters = () => {
-    setBudget(currentBudgetRange);
+    setBudget(currentBudgetRange as [number, number]);
     setArea([500, 5000]);
     setBedrooms([]);
     setBathrooms([]);
