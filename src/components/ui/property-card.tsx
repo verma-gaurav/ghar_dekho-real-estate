@@ -1,4 +1,3 @@
-
 import { Property } from "@/types";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +5,8 @@ import { Clock, MapPin, Bed, Bath, Home, Heart, Building, Eye } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface PropertyCardProps {
   property: Property;
@@ -13,6 +14,17 @@ interface PropertyCardProps {
 }
 
 export function PropertyCard({ property, className }: PropertyCardProps) {
+  const navigate = useNavigate();
+  const { isAuthenticated, setShowAuthModal } = useAuth();
+
+  const handlePropertyClick = () => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      return;
+    }
+    navigate(`/property/${property.id}`);
+  };
+
   const formatPrice = (price: number) => {
     if (price >= 10000000) {
       return `₹${(price / 10000000).toFixed(2)} Cr`;
@@ -31,7 +43,7 @@ export function PropertyCard({ property, className }: PropertyCardProps) {
   };
 
   return (
-    <Card className={cn("overflow-hidden hover:shadow-lg transition-shadow", className)}>
+    <Card className={cn("overflow-hidden hover:shadow-lg transition-shadow cursor-pointer", className)} onClick={handlePropertyClick}>
       <div className="relative">
         <img
           src={property.images[0]}

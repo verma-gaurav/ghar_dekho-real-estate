@@ -1,6 +1,6 @@
-
-import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,11 +14,16 @@ import { toast } from "@/hooks/use-toast";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
-  const [property, setProperty] = useState<Property | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [isSaved, setIsSaved] = useState<boolean>(false);
-
+  const navigate = useNavigate();
+  const { isAuthenticated, setShowAuthModal } = useAuth();
+  
   useEffect(() => {
+    if (!isAuthenticated) {
+      setShowAuthModal(true);
+      navigate('/');
+      return;
+    }
+    
     if (id) {
       // Fetch property details
       const fetchedProperty = database.getPropertyById(id);
@@ -38,7 +43,7 @@ export default function PropertyDetail() {
       
       setLoading(false);
     }
-  }, [id]);
+  }, [id, isAuthenticated, navigate, setShowAuthModal]);
 
   const handleSaveProperty = () => {
     if (!property) return;
