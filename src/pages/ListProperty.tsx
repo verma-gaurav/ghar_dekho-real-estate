@@ -1,6 +1,8 @@
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import ListingForm from "@/components/property/ListingForm";
 
 export default function ListProperty() {
   const navigate = useNavigate();
@@ -18,9 +20,11 @@ export default function ListProperty() {
   }
 
   return (
-    <div className="container py-8">
+    <div className="container max-w-3xl py-8">
       <h1 className="text-2xl font-bold mb-6">List Your Property</h1>
-      {/* Form implementation will be added in the next iteration */}
+      <div className="bg-card rounded-lg p-6 shadow-sm">
+        <ListingForm />
+      </div>
     </div>
   );
 }
