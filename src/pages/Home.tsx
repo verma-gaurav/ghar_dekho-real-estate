@@ -1,125 +1,92 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { PropertyCard } from "@/components/ui/property-card";
 import { SearchFilters } from "@/components/ui/search-filters";
-import { mockProperties } from "@/data/mockData";
+import { AdvancedFilters } from "@/components/ui/advanced-filters";
 import { Property } from "@/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Building, Home as HomeIcon, User, MapPin, ArrowRight, Check, Search } from "lucide-react";
+import { Building, Home as HomeIcon, User, MapPin, ArrowRight, Check, Search, Filter, Bell } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import database from "@/services/database";
 
 export default function Home() {
-  const [filteredProperties, setFilteredProperties] = useState<Property[]>(mockProperties);
-  const [activeTab, setActiveTab] = useState("all");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [filteredProperties, setFilteredProperties] = useState<Property[]>([]);
+  const [activeTab, setActiveTab] = useState<"all" | "buy" | "rent" | "pg" | "commercial">("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+
+  // Determine the active tab based on the current route
+  useEffect(() => {
+    const path = location.pathname.split("/")[1];
+    if (path === "buy") setActiveTab("buy");
+    else if (path === "rent") setActiveTab("rent");
+    else if (path === "pg") setActiveTab("pg");
+    else if (path === "commercial") setActiveTab("commercial");
+    else setActiveTab("all");
+  }, [location]);
+
+  // Initial load of properties
+  useEffect(() => {
+    const allProperties = database.getAllProperties();
+    setFilteredProperties(allProperties);
+    
+    // Filter properties based on current tab
+    filterByTab(activeTab);
+  }, [activeTab]);
 
   const handleSearch = (filters: any) => {
-    // In a real application, this would be a server-side search
-    // For demo purposes, we'll just filter the mock data
-    let filtered = mockProperties;
-
-    // Filter by purpose (buy/rent/pg)
-    if (filters.purpose) {
-      if (filters.purpose === "buy") {
-        filtered = filtered.filter(p => p.purpose === "sell");
-      } else {
-        filtered = filtered.filter(p => p.purpose === filters.purpose);
-      }
-    }
-
-    // Filter by property type
-    if (filters.propertyType) {
-      filtered = filtered.filter(p => p.type === filters.propertyType);
-      
-      // Filter by sub-type
-      if (filters.subType) {
-        filtered = filtered.filter(p => p.subType === filters.subType);
-      }
-    }
-
-    // Filter by bedrooms
-    if (filters.bedrooms && filters.bedrooms.length > 0) {
-      filtered = filtered.filter(p => {
-        if (!p.details.bedrooms) return false;
-        return filters.bedrooms.includes(p.details.bedrooms.toString());
-      });
-    }
-
-    // Filter by bathrooms
-    if (filters.bathrooms && filters.bathrooms.length > 0) {
-      filtered = filtered.filter(p => {
-        if (!p.details.bathrooms) return false;
-        return filters.bathrooms.includes(p.details.bathrooms.toString());
-      });
-    }
-
-    // Filter by furnishing
-    if (filters.furnishing && filters.furnishing.length > 0) {
-      filtered = filtered.filter(p => {
-        return filters.furnishing.includes(p.details.furnishing);
-      });
-    }
-
-    // Filter by budget
-    if (filters.budget && filters.budget.length === 2) {
-      filtered = filtered.filter(p => {
-        return p.price >= filters.budget[0] && p.price <= filters.budget[1];
-      });
-    }
-
-    // Filter by area
-    if (filters.area && filters.area.length === 2) {
-      filtered = filtered.filter(p => {
-        const area = p.details.carpetArea || p.details.builtUpArea || p.details.plotArea || 0;
-        return area >= filters.area[0] && area <= filters.area[1];
-      });
-    }
-
-    // Filter by posted by (owner/builder/agent)
-    if (filters.postedBy && filters.postedBy.length > 0) {
-      filtered = filtered.filter(p => {
-        return filters.postedBy.includes(p.postedBy.type);
-      });
-    }
-
-    // Filter by amenities
-    if (filters.amenities && filters.amenities.length > 0) {
-      filtered = filtered.filter(p => {
-        return filters.amenities.every((amenity: string) => p.amenities.includes(amenity));
-      });
-    }
-
-    // Filter by search term
-    if (filters.searchTerm) {
-      const searchLower = filters.searchTerm.toLowerCase();
-      filtered = filtered.filter(p => {
-        return (
-          p.title.toLowerCase().includes(searchLower) ||
-          p.description.toLowerCase().includes(searchLower) ||
-          p.location.city.toLowerCase().includes(searchLower) ||
-          p.location.locality.toLowerCase().includes(searchLower) ||
-          (p.location.society && p.location.society.toLowerCase().includes(searchLower))
-        );
-      });
-    }
-
+    const filtered = database.filterProperties(filters);
     setFilteredProperties(filtered);
   };
 
+  const handleAdvancedFilters = (filters: any) => {
+    const filtered = database.filterProperties(filters);
+    setFilteredProperties(filtered);
+    setAdvancedFiltersOpen(false);
+  };
+
   const filterByTab = (tab: string) => {
-    setActiveTab(tab);
+    setActiveTab(tab as any);
+    
+    // Update URL to match the selected tab
+    if (tab !== "all") {
+      navigate(`/${tab}`);
+    } else {
+      navigate("/");
+    }
+    
+    // Filter properties based on tab
+    const allProperties = database.getAllProperties();
     
     if (tab === "all") {
-      setFilteredProperties(mockProperties);
+      setFilteredProperties(allProperties);
       return;
     }
     
     if (tab === "buy") {
-      setFilteredProperties(mockProperties.filter(p => p.purpose === "sell"));
+      setFilteredProperties(allProperties.filter(p => p.purpose === "sell"));
       return;
     }
     
-    setFilteredProperties(mockProperties.filter(p => p.purpose === tab));
+    setFilteredProperties(allProperties.filter(p => p.purpose === tab));
+  };
+
+  const handleBasicSearch = () => {
+    if (!searchQuery.trim()) return;
+    
+    const filters = {
+      searchTerm: searchQuery,
+      purpose: activeTab === "buy" ? "sell" : activeTab === "all" ? undefined : activeTab
+    };
+    
+    const filtered = database.filterProperties(filters);
+    setFilteredProperties(filtered);
   };
 
   return (
@@ -137,11 +104,17 @@ export default function Home() {
                 Explore thousands of properties for sale and rent across the country
               </p>
               
-              <Tabs defaultValue="buy" className="w-full max-w-md">
-                <TabsList className="grid w-full grid-cols-3">
+              <Tabs 
+                defaultValue={activeTab === "all" ? "buy" : activeTab} 
+                value={activeTab === "all" ? "buy" : activeTab}
+                onValueChange={(value) => filterByTab(value)}
+                className="w-full max-w-md"
+              >
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="buy">Buy</TabsTrigger>
                   <TabsTrigger value="rent">Rent</TabsTrigger>
                   <TabsTrigger value="pg">PG</TabsTrigger>
+                  <TabsTrigger value="commercial">Commercial</TabsTrigger>
                 </TabsList>
                 <TabsContent value="buy" className="mt-4">
                   <div className="bg-white rounded-lg p-4 shadow-sm">
@@ -151,10 +124,30 @@ export default function Home() {
                         type="text"
                         placeholder="Enter locality, landmark, city or project"
                         className="w-full py-3 px-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-estate-300"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleBasicSearch()}
                       />
-                      <Button className="absolute right-1 top-1/2 -translate-y-1/2">
-                        <Search className="h-4 w-4 mr-2" /> Search
-                      </Button>
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
+                        <Dialog open={advancedFiltersOpen} onOpenChange={setAdvancedFiltersOpen}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="mr-1">
+                              <Filter className="h-4 w-4 mr-2" /> Filters
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>Advanced Filters</DialogTitle>
+                            </DialogHeader>
+                            <div className="max-h-[70vh] overflow-y-auto pr-2">
+                              <AdvancedFilters purpose="buy" onApplyFilters={handleAdvancedFilters} />
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                        <Button onClick={handleBasicSearch}>
+                          <Search className="h-4 w-4 mr-2" /> Search
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </TabsContent>
@@ -166,10 +159,30 @@ export default function Home() {
                         type="text"
                         placeholder="Enter locality, landmark, city or project"
                         className="w-full py-3 px-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-estate-300"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleBasicSearch()}
                       />
-                      <Button className="absolute right-1 top-1/2 -translate-y-1/2">
-                        <Search className="h-4 w-4 mr-2" /> Search
-                      </Button>
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
+                        <Dialog open={advancedFiltersOpen} onOpenChange={setAdvancedFiltersOpen}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="mr-1">
+                              <Filter className="h-4 w-4 mr-2" /> Filters
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>Advanced Filters</DialogTitle>
+                            </DialogHeader>
+                            <div className="max-h-[70vh] overflow-y-auto pr-2">
+                              <AdvancedFilters purpose="rent" onApplyFilters={handleAdvancedFilters} />
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                        <Button onClick={handleBasicSearch}>
+                          <Search className="h-4 w-4 mr-2" /> Search
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </TabsContent>
@@ -181,10 +194,65 @@ export default function Home() {
                         type="text"
                         placeholder="Enter locality, landmark, city or project"
                         className="w-full py-3 px-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-estate-300"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleBasicSearch()}
                       />
-                      <Button className="absolute right-1 top-1/2 -translate-y-1/2">
-                        <Search className="h-4 w-4 mr-2" /> Search
-                      </Button>
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
+                        <Dialog open={advancedFiltersOpen} onOpenChange={setAdvancedFiltersOpen}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="mr-1">
+                              <Filter className="h-4 w-4 mr-2" /> Filters
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>Advanced Filters</DialogTitle>
+                            </DialogHeader>
+                            <div className="max-h-[70vh] overflow-y-auto pr-2">
+                              <AdvancedFilters purpose="pg" onApplyFilters={handleAdvancedFilters} />
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                        <Button onClick={handleBasicSearch}>
+                          <Search className="h-4 w-4 mr-2" /> Search
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+                <TabsContent value="commercial" className="mt-4">
+                  <div className="bg-white rounded-lg p-4 shadow-sm">
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder="Enter locality, landmark, city or project"
+                        className="w-full py-3 px-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-estate-300"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleBasicSearch()}
+                      />
+                      <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
+                        <Dialog open={advancedFiltersOpen} onOpenChange={setAdvancedFiltersOpen}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="mr-1">
+                              <Filter className="h-4 w-4 mr-2" /> Filters
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>Advanced Filters</DialogTitle>
+                            </DialogHeader>
+                            <div className="max-h-[70vh] overflow-y-auto pr-2">
+                              <AdvancedFilters purpose="commercial" onApplyFilters={handleAdvancedFilters} />
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                        <Button onClick={handleBasicSearch}>
+                          <Search className="h-4 w-4 mr-2" /> Search
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </TabsContent>
@@ -217,32 +285,63 @@ export default function Home() {
           </h2>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <Button variant="outline" className="h-auto py-8 flex flex-col items-center justify-center gap-3 hover:bg-estate-50 hover:border-estate-300 transition-all rounded-xl">
+            <Button 
+              variant="outline" 
+              className="h-auto py-8 flex flex-col items-center justify-center gap-3 hover:bg-estate-50 hover:border-estate-300 transition-all rounded-xl"
+              onClick={() => filterByTab("buy")}
+            >
               <div className="w-16 h-16 bg-estate-100 rounded-full flex items-center justify-center">
                 <HomeIcon className="h-8 w-8 text-estate-500" />
               </div>
               <span className="font-medium">Buy a Home</span>
             </Button>
             
-            <Button variant="outline" className="h-auto py-8 flex flex-col items-center justify-center gap-3 hover:bg-estate-50 hover:border-estate-300 transition-all rounded-xl">
+            <Button 
+              variant="outline" 
+              className="h-auto py-8 flex flex-col items-center justify-center gap-3 hover:bg-estate-50 hover:border-estate-300 transition-all rounded-xl"
+              onClick={() => filterByTab("rent")}
+            >
               <div className="w-16 h-16 bg-estate-100 rounded-full flex items-center justify-center">
                 <Building className="h-8 w-8 text-estate-500" />
               </div>
               <span className="font-medium">Rent a Home</span>
             </Button>
             
-            <Button variant="outline" className="h-auto py-8 flex flex-col items-center justify-center gap-3 hover:bg-estate-50 hover:border-estate-300 transition-all rounded-xl">
+            <Button 
+              variant="outline" 
+              className="h-auto py-8 flex flex-col items-center justify-center gap-3 hover:bg-estate-50 hover:border-estate-300 transition-all rounded-xl"
+              onClick={() => filterByTab("pg")}
+            >
               <div className="w-16 h-16 bg-estate-100 rounded-full flex items-center justify-center">
                 <User className="h-8 w-8 text-estate-500" />
               </div>
               <span className="font-medium">PG/Co-living</span>
             </Button>
             
-            <Button variant="outline" className="h-auto py-8 flex flex-col items-center justify-center gap-3 hover:bg-estate-50 hover:border-estate-300 transition-all rounded-xl">
+            <Button 
+              variant="outline" 
+              className="h-auto py-8 flex flex-col items-center justify-center gap-3 hover:bg-estate-50 hover:border-estate-300 transition-all rounded-xl"
+              onClick={() => filterByTab("commercial")}
+            >
               <div className="w-16 h-16 bg-estate-100 rounded-full flex items-center justify-center">
                 <Building className="h-8 w-8 text-estate-500" />
               </div>
               <span className="font-medium">Commercial</span>
+            </Button>
+          </div>
+        </div>
+      </section>
+      
+      {/* Post Property CTA */}
+      <section className="py-10 bg-estate-100">
+        <div className="container">
+          <div className="flex flex-col md:flex-row md:items-center justify-between">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold mb-2">List Your Property Today</h2>
+              <p className="text-muted-foreground">Reach thousands of potential buyers and tenants for free</p>
+            </div>
+            <Button asChild className="mt-4 md:mt-0">
+              <Link to="/list-property">Post Property <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
           </div>
         </div>
@@ -252,27 +351,25 @@ export default function Home() {
       <section className="py-12 bg-gray-50">
         <div className="container">
           <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold">Featured Properties</h2>
-            <Tabs value={activeTab} onValueChange={filterByTab} className="hidden md:flex">
-              <TabsList>
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="buy">For Sale</TabsTrigger>
-                <TabsTrigger value="rent">For Rent</TabsTrigger>
-                <TabsTrigger value="pg">PG</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-
-          {/* Mobile Tabs */}
-          <div className="md:hidden mb-6">
-            <Tabs value={activeTab} onValueChange={filterByTab} className="w-full">
-              <TabsList className="w-full grid grid-cols-4">
-                <TabsTrigger value="all">All</TabsTrigger>
-                <TabsTrigger value="buy">Sale</TabsTrigger>
-                <TabsTrigger value="rent">Rent</TabsTrigger>
-                <TabsTrigger value="pg">PG</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <h2 className="text-2xl md:text-3xl font-bold">
+              {activeTab === "all" 
+                ? "Featured Properties" 
+                : activeTab === "buy" 
+                  ? "Properties for Sale" 
+                  : activeTab === "rent" 
+                    ? "Properties for Rent" 
+                    : activeTab === "pg" 
+                      ? "PG Accommodations" 
+                      : "Commercial Properties"}
+            </h2>
+            <div className="hidden md:flex items-center">
+              <Button variant="outline" asChild className="mr-2">
+                <Link to="/list-property">Post Property</Link>
+              </Button>
+              <Button variant="outline" className="gap-2" onClick={() => setAdvancedFiltersOpen(true)}>
+                <Filter className="h-4 w-4" /> Filters
+              </Button>
+            </div>
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -281,12 +378,28 @@ export default function Home() {
             ))}
           </div>
           
-          <div className="text-center mt-8">
-            <Button variant="outline" className="group">
-              View All Properties 
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Button>
-          </div>
+          {filteredProperties.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-5xl mb-4">😔</div>
+              <h3 className="text-xl font-semibold mb-2">No Properties Found</h3>
+              <p className="text-muted-foreground mb-6">Try adjusting your search filters to find more properties.</p>
+              <Button onClick={() => {
+                setSearchQuery("");
+                filterByTab(activeTab);
+              }}>
+                Reset Filters
+              </Button>
+            </div>
+          )}
+          
+          {filteredProperties.length > 6 && (
+            <div className="text-center mt-8">
+              <Button variant="outline" className="group" onClick={() => setShowAdvancedFilters(true)}>
+                View All Properties 
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -334,23 +447,54 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Search Properties Section */}
-      <section className="py-12 bg-gray-50">
-        <div className="container">
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <h2 className="text-2xl font-bold mb-6">Search Properties</h2>
-            <SearchFilters onSearch={handleSearch} />
-            
-            <div className="mt-8">
-              <h3 className="text-xl font-semibold mb-4">
-                {filteredProperties.length} Properties Found
-              </h3>
-              
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProperties.map((property) => (
-                  <PropertyCard key={property.id} property={property} />
-                ))}
+      {/* Properties with Advanced Search */}
+      {showAdvancedFilters && (
+        <section className="py-12 bg-gray-50">
+          <div className="container">
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">Search Properties</h2>
+                <Button variant="outline" onClick={() => setAdvancedFiltersOpen(true)}>
+                  <Filter className="h-4 w-4 mr-2" /> Advanced Filters
+                </Button>
               </div>
+              
+              <SearchFilters onSearch={handleSearch} />
+              
+              <div className="mt-8">
+                <h3 className="text-xl font-semibold mb-4">
+                  {filteredProperties.length} Properties Found
+                </h3>
+                
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredProperties.map((property) => (
+                    <PropertyCard key={property.id} property={property} />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+      
+      {/* Email Alerts Section */}
+      <section className="py-12 bg-estate-100">
+        <div className="container">
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-6">
+              <Bell className="h-8 w-8 text-estate-500" />
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold mb-4">Get Property Alerts</h2>
+            <p className="text-muted-foreground mb-8">
+              Stay updated with new properties matching your criteria. We'll send notifications straight to your inbox.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+              <input
+                type="email"
+                placeholder="Enter your email"
+                className="flex-1 py-2 px-4 rounded-md border focus:outline-none focus:ring-2 focus:ring-estate-300"
+              />
+              <Button>Subscribe</Button>
             </div>
           </div>
         </div>
