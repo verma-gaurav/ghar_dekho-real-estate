@@ -1,5 +1,6 @@
-import { useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -16,6 +17,10 @@ export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAuthenticated, setShowAuthModal } = useAuth();
+  
+  const [property, setProperty] = useState<Property | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  const [isSaved, setIsSaved] = useState(false);
   
   useEffect(() => {
     if (!isAuthenticated) {
