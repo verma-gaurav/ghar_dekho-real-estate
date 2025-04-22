@@ -10,6 +10,7 @@ import { Footer } from "@/components/footer";
 import Home from "./pages/Home";
 import PropertyDetail from "./pages/PropertyDetail";
 import ListProperty from "./pages/ListProperty";
+import SavedProperties from "./pages/SavedProperties";
 import NotFound from "./pages/NotFound";
 import AuthModal from "./components/AuthModal";
 
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/commercial" element={<Home />} />
               <Route path="/property/:id" element={<PropertyDetail />} />
               <Route path="/list-property" element={<ListProperty />} />
+              <Route path="/saved-properties" element={<SavedProperties />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>

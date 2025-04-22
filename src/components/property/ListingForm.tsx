@@ -1,5 +1,6 @@
 
 import { useForm } from "react-hook-form";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,14 +20,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Property, PropertyPurpose, PropertyType, FurnishingStatus } from "@/types";
-import database from "@/services/database";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { addProperty } from "@/services/supabaseService";
+import { supabase } from "@/integrations/supabase/client";
 
 const ListingForm = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const form = useForm({
     defaultValues: {
       title: "",
@@ -49,8 +53,8 @@ const ListingForm = () => {
     },
   });
 
-  const onSubmit = (data: any) => {
-    if (!isAuthenticated) {
+  const onSubmit = async (data: any) => {
+    if (!user) {
       toast({
         title: "Authentication required",
         description: "Please login to list a property",
@@ -60,6 +64,13 @@ const ListingForm = () => {
     }
 
     try {
+      setIsSubmitting(true);
+      
+      // Get current user details from Supabase
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) throw userError;
+      
       const propertyData = {
         ...data,
         images: [
@@ -68,28 +79,33 @@ const ListingForm = () => {
         ],
         amenities: [],
         postedBy: {
-          id: "user1", // Hardcoded for now
+          id: userData.user.id,
           type: "owner",
-          name: "John Doe",
+          name: userData.user.user_metadata?.full_name || "Property Owner",
           contactInfo: {
-            email: "john@example.com",
-            phone: "+1234567890",
+            email: userData.user.email || "",
+            phone: userData.user.user_metadata?.phone || "",
           },
         },
       };
 
-      const newProperty = database.addProperty(propertyData);
+      const newProperty = await addProperty(propertyData);
+      
       toast({
         title: "Success!",
         description: "Property has been listed successfully",
       });
+      
       navigate(`/property/${newProperty.id}`);
     } catch (error) {
+      console.error("Error listing property:", error);
       toast({
         title: "Error",
         description: "Failed to list property. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -300,7 +316,9 @@ const ListingForm = () => {
           )}
         />
 
-        <Button type="submit" className="w-full">List Property</Button>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? "Submitting..." : "List Property"}
+        </Button>
       </form>
     </Form>
   );
