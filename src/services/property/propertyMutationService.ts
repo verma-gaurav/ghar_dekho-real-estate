@@ -1,8 +1,8 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Property } from "@/types";
 import { v4 as uuidv4 } from 'uuid';
 import { fromDbProperty, toDbPropertyInput } from "./propertyDataService";
+import type { Database } from "@/integrations/supabase/types";
 
 export const addProperty = async (propertyData: Omit<Property, "id" | "createdAt" | "updatedAt" | "views" | "propertyScore">) => {
   const id = uuidv4();
@@ -85,4 +85,3 @@ export const updateProperty = async (id: string, updates: Partial<Property>): Pr
     throw error;
   }
 };
-
