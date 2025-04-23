@@ -51,8 +51,9 @@ function toDbPropertyInput(p: Partial<Omit<Property, "id" | "createdAt" | "updat
     available_from: p.availability,
     posted_by: p.postedBy!,
     features: p.termsAndConditions as any,
-    created_at: p.createdAt,
-    updated_at: p.updatedAt,
+    // Remove references to createdAt and updatedAt since they don't exist on the input type
+    created_at: undefined,
+    updated_at: undefined, 
     property_score: p.propertyScore,
     views: p.views
   }
@@ -67,10 +68,10 @@ function fromDbUser(user: Database['public']['Tables']['users']['Row']): User {
     phone: user.phone,
     type: user.type as User["type"],
     profilePicture: user.avatar_url || undefined,
-    savedProperties: user.saved_properties ?? [],
-    listedProperties: user.listed_properties ?? [],
-    inquiries: user.inquiries ?? [],
-    savedSearches: user.saved_searches ?? [],
+    savedProperties: user.saved_properties ? user.saved_properties.map(id => id.toString()) : [],
+    listedProperties: user.listed_properties ? user.listed_properties.map(id => id.toString()) : [],
+    inquiries: user.inquiries ? user.inquiries.map(id => id.toString()) : [],
+    savedSearches: user.saved_searches ? [] : [], // Handling JSON to string array conversion
     createdAt: user.created_at,
     updatedAt: user.updated_at
   }
@@ -84,12 +85,12 @@ function toDbUserInput(user: Partial<User>): Database['public']['Tables']['users
     phone: user.phone!,
     type: user.type!,
     avatar_url: user.profilePicture ?? null,
-    saved_properties: user.savedProperties ?? [],
-    listed_properties: user.listedProperties ?? [],
-    inquiries: user.inquiries ?? [],
-    saved_searches: user.savedSearches ?? [],
-    created_at: user.createdAt,
-    updated_at: user.updatedAt,
+    saved_properties: user.savedProperties as any[] ?? [],
+    listed_properties: user.listedProperties as any[] ?? [],
+    inquiries: user.inquiries as any[] ?? [],
+    saved_searches: user.savedSearches as any[] ?? [],
+    created_at: undefined,
+    updated_at: undefined,
     email_verified: false,
     phone_verified: false,
     terms_accepted: false,
@@ -117,17 +118,19 @@ export const addProperty = async (propertyData: Omit<Property, "id" | "createdAt
     views: 0
   };
 
-  const propertyInsert: Database['public']['Tables']['properties']['Insert'] = toDbPropertyInput({
-    ...propertyData,
-    id,
-    createdAt: now,
-    updatedAt: now,
-    propertyScore,
-    views: 0
-  });
+  const propertyInsert: Database['public']['Tables']['properties']['Insert'] = {
+    ...toDbPropertyInput({
+      ...propertyData,
+      id,
+      propertyScore,
+      views: 0
+    }),
+    created_at: now,
+    updated_at: now
+  };
 
   try {
-    const { error } = await supabase.from('properties').insert([propertyInsert]);
+    const { error } = await supabase.from('properties').insert([propertyInsert] as any);
     if (error) throw error;
 
     // Update the user's listedProperties if applicable
@@ -144,7 +147,7 @@ export const addProperty = async (propertyData: Omit<Property, "id" | "createdAt
         .from('users')
         .update({
           listed_properties: [...listedProperties, id]
-        })
+        } as any)
         .eq('id', propertyData.postedBy.id);
       if (updateRes.error) throw updateRes.error;
     }
@@ -186,13 +189,17 @@ export const getPropertyById = async (id: string): Promise<Property> => {
 
 export const updateProperty = async (id: string, updates: Partial<Property>): Promise<Property> => {
   try {
-    const dbUpdates: Partial<Database['public']['Tables']['properties']['Update']> = {
+    const now = new Date().toISOString();
+    
+    // Create DB update object, but omit keys that should not be in the update
+    const dbUpdates = {
       ...toDbPropertyInput(updates),
-      updated_at: new Date().toISOString()
+      updated_at: now
     };
+    
     const { data, error } = await supabase
       .from('properties')
-      .update(dbUpdates)
+      .update(dbUpdates as any)
       .eq('id', id)
       .select()
       .maybeSingle();
@@ -263,7 +270,7 @@ export const toggleSavedProperty = async (userId: string, propertyId: string): P
       .maybeSingle();
     if (!user || fetchError) throw fetchError || new Error("User not found");
 
-    const savedProperties: string[] = user.saved_properties ?? [];
+    const savedProperties = user.saved_properties ?? [];
     const isAlreadySaved = savedProperties.includes(propertyId);
 
     if (isAlreadySaved) {
@@ -272,7 +279,7 @@ export const toggleSavedProperty = async (userId: string, propertyId: string): P
         .from('users')
         .update({
           saved_properties: savedProperties.filter(id => id !== propertyId)
-        })
+        } as any)
         .eq('id', userId);
       if (updateError) throw updateError;
       return false;
@@ -282,7 +289,7 @@ export const toggleSavedProperty = async (userId: string, propertyId: string): P
         .from('users')
         .update({
           saved_properties: [...savedProperties, propertyId]
-        })
+        } as any)
         .eq('id', userId);
       if (updateError) throw updateError;
       return true;
@@ -324,7 +331,7 @@ export const createOrUpdateUser = async (userData: Partial<User>): Promise<User>
     const upsertInput = toDbUserInput(userData);
     const { data, error } = await supabase
       .from('users')
-      .upsert(upsertInput)
+      .upsert(upsertInput as any)
       .select()
       .maybeSingle();
     if (error || !data) throw error || new Error("User upsert failed");
