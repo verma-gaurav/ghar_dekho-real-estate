@@ -1,42 +1,113 @@
 
+// Services for property and user interactions with Supabase
 import { supabase } from "@/integrations/supabase/client";
 import { Property, User } from "@/types";
 import { v4 as uuidv4 } from 'uuid';
+import type { Database } from "@/integrations/supabase/types";
+
+// Helper: Convert DB property row to app Property type
+function fromDbProperty(row: Database['public']['Tables']['properties']['Row']): Property {
+  return {
+    id: row.id,
+    title: row.title,
+    purpose: row.purpose as Property["purpose"],
+    type: row.type as Property["type"],
+    subType: (row.sub_type ?? "") as Property["subType"],
+    price: Number(row.price),
+    securityDeposit: row.security_deposit ? Number(row.security_deposit) : undefined,
+    location: row.location as Property["location"],
+    details: row.details as Property["details"],
+    amenities: row.amenities ?? [],
+    description: row.description,
+    images: row.images ?? [],
+    video: row.videos && row.videos.length > 0 ? row.videos[0] : undefined,
+    availability: row.available_from ?? "",
+    postedBy: row.posted_by as Property["postedBy"],
+    termsAndConditions: row.features as Property["termsAndConditions"],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    propertyScore: row.property_score,
+    views: row.views,
+    audioDescription: undefined // Not present in schema
+  };
+}
+
+// Helper: Convert app Property type to DB row object for insert/update
+function toDbPropertyInput(p: Partial<Omit<Property, "id" | "createdAt" | "updatedAt" | "views" | "propertyScore">> & { id?: string, propertyScore?: number, views?: number }): Database['public']['Tables']['properties']['Insert'] {
+  return {
+    id: p.id,
+    title: p.title!,
+    purpose: p.purpose!,
+    type: p.type!,
+    sub_type: p.subType,
+    price: p.price!,
+    security_deposit: p.securityDeposit,
+    location: p.location!,
+    details: p.details!,
+    amenities: p.amenities ?? [],
+    description: p.description!,
+    images: p.images ?? [],
+    videos: [],
+    available_from: p.availability,
+    posted_by: p.postedBy!,
+    features: p.termsAndConditions as any,
+    created_at: p.createdAt,
+    updated_at: p.updatedAt,
+    property_score: p.propertyScore,
+    views: p.views
+  }
+}
+
+// Helper: Map DB user row to User type
+function fromDbUser(user: Database['public']['Tables']['users']['Row']): User {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    type: user.type as User["type"],
+    profilePicture: user.avatar_url || undefined,
+    savedProperties: user.saved_properties ?? [],
+    listedProperties: user.listed_properties ?? [],
+    inquiries: user.inquiries ?? [],
+    savedSearches: user.saved_searches ?? [],
+    createdAt: user.created_at,
+    updatedAt: user.updated_at
+  }
+}
+
+function toDbUserInput(user: Partial<User>): Database['public']['Tables']['users']['Insert'] {
+  return {
+    id: user.id!,
+    name: user.name!,
+    email: user.email!,
+    phone: user.phone!,
+    type: user.type!,
+    avatar_url: user.profilePicture ?? null,
+    saved_properties: user.savedProperties ?? [],
+    listed_properties: user.listedProperties ?? [],
+    inquiries: user.inquiries ?? [],
+    saved_searches: user.savedSearches ?? [],
+    created_at: user.createdAt,
+    updated_at: user.updatedAt,
+    email_verified: false,
+    phone_verified: false,
+    terms_accepted: false,
+    terms_accepted_at: null,
+  }
+}
 
 // Property services
 export const addProperty = async (propertyData: Omit<Property, "id" | "createdAt" | "updatedAt" | "views" | "propertyScore">) => {
-  // Generate a unique ID
   const id = uuidv4();
-  
-  // Calculate property score (similar to the mock database logic)
   let propertyScore = 0;
-  
-  // Basic details add 20% to score
-  if (propertyData.title && propertyData.purpose && propertyData.type) {
-    propertyScore += 20;
-  }
-  
-  // Location details add 20% to score
-  if (propertyData.location && propertyData.location.city && propertyData.location.locality) {
-    propertyScore += 20;
-  }
-  
-  // Property details add 20% to score
-  if (propertyData.details && propertyData.details.furnishing) {
-    propertyScore += 20;
-  }
-  
-  // Images add 20% to score
-  if (propertyData.images && propertyData.images.length > 0) {
-    propertyScore += 20;
-  }
-  
-  // Description adds 20% to score
-  if (propertyData.description && propertyData.description.length > 50) {
-    propertyScore += 20;
-  }
-  
+  if (propertyData.title && propertyData.purpose && propertyData.type) propertyScore += 20;
+  if (propertyData.location && propertyData.location.city && propertyData.location.locality) propertyScore += 20;
+  if (propertyData.details && propertyData.details.furnishing) propertyScore += 20;
+  if (propertyData.images && propertyData.images.length > 0) propertyScore += 20;
+  if (propertyData.description && propertyData.description.length > 50) propertyScore += 20;
   const now = new Date().toISOString();
+
   const newProperty: Property = {
     id,
     ...propertyData,
@@ -45,37 +116,39 @@ export const addProperty = async (propertyData: Omit<Property, "id" | "createdAt
     propertyScore,
     views: 0
   };
-  
+
+  const propertyInsert: Database['public']['Tables']['properties']['Insert'] = toDbPropertyInput({
+    ...propertyData,
+    id,
+    createdAt: now,
+    updatedAt: now,
+    propertyScore,
+    views: 0
+  });
+
   try {
-    // Type assertion to any to bypass TypeScript errors with Supabase types
-    const { error } = await (supabase
-      .from('properties') as any)
-      .insert(newProperty);
-      
+    const { error } = await supabase.from('properties').insert([propertyInsert]);
     if (error) throw error;
-      
+
     // Update the user's listedProperties if applicable
     if (propertyData.postedBy?.id) {
-      // First get current user data
-      const { data: userData, error: userError } = await (supabase
-        .from('users') as any)
-        .select('listedProperties')
+      const { data: userDataRaw, error: userError } = await supabase
+        .from('users')
+        .select('listed_properties')
         .eq('id', propertyData.postedBy.id)
-        .single();
-        
-      if (userError && userError.code !== 'PGRST116') throw userError;
-      
-      const listedProperties = userData?.listedProperties || [];
-      
-      // Then update with the new property ID
-      await (supabase
-        .from('users') as any)
+        .maybeSingle();
+
+      if (userError) throw userError;
+      const listedProperties = userDataRaw?.listed_properties ?? [];
+      const updateRes = await supabase
+        .from('users')
         .update({
-          listedProperties: [...listedProperties, id]
+          listed_properties: [...listedProperties, id]
         })
         .eq('id', propertyData.postedBy.id);
+      if (updateRes.error) throw updateRes.error;
     }
-      
+
     return newProperty;
   } catch (error) {
     console.error("Error adding property:", error);
@@ -85,12 +158,11 @@ export const addProperty = async (propertyData: Omit<Property, "id" | "createdAt
 
 export const getAllProperties = async (): Promise<Property[]> => {
   try {
-    const { data, error } = await (supabase
-      .from('properties') as any)
+    const { data, error } = await supabase
+      .from('properties')
       .select('*');
-      
     if (error) throw error;
-    return data || [];
+    return (data ?? []).map(fromDbProperty);
   } catch (error) {
     console.error("Error getting all properties:", error);
     throw error;
@@ -99,14 +171,13 @@ export const getAllProperties = async (): Promise<Property[]> => {
 
 export const getPropertyById = async (id: string): Promise<Property> => {
   try {
-    const { data, error } = await (supabase
-      .from('properties') as any)
+    const { data, error } = await supabase
+      .from('properties')
       .select('*')
       .eq('id', id)
-      .single();
-      
-    if (error) throw error;
-    return data;
+      .maybeSingle();
+    if (!data || error) throw error || new Error("Not found");
+    return fromDbProperty(data);
   } catch (error) {
     console.error(`Error getting property with ID ${id}:`, error);
     throw error;
@@ -115,18 +186,18 @@ export const getPropertyById = async (id: string): Promise<Property> => {
 
 export const updateProperty = async (id: string, updates: Partial<Property>): Promise<Property> => {
   try {
-    const { data, error } = await (supabase
-      .from('properties') as any)
-      .update({
-        ...updates,
-        updatedAt: new Date().toISOString()
-      })
+    const dbUpdates: Partial<Database['public']['Tables']['properties']['Update']> = {
+      ...toDbPropertyInput(updates),
+      updated_at: new Date().toISOString()
+    };
+    const { data, error } = await supabase
+      .from('properties')
+      .update(dbUpdates)
       .eq('id', id)
       .select()
-      .single();
-      
-    if (error) throw error;
-    return data;
+      .maybeSingle();
+    if (!data || error) throw error || new Error("Property not found after update");
+    return fromDbProperty(data);
   } catch (error) {
     console.error(`Error updating property with ID ${id}:`, error);
     throw error;
@@ -135,9 +206,7 @@ export const updateProperty = async (id: string, updates: Partial<Property>): Pr
 
 export const filterProperties = async (filters: any): Promise<Property[]> => {
   try {
-    let query = (supabase.from('properties') as any).select('*');
-    
-    // Filter by purpose (buy/rent/pg)
+    let query = supabase.from('properties').select('*');
     if (filters.purpose) {
       if (filters.purpose === 'buy') {
         query = query.eq('purpose', 'sell');
@@ -145,25 +214,24 @@ export const filterProperties = async (filters: any): Promise<Property[]> => {
         query = query.eq('purpose', filters.purpose);
       }
     }
-    
-    // Filter by property type
     if (filters.propertyType) {
       query = query.eq('type', filters.propertyType);
-      
-      // Filter by sub-type
       if (filters.subType) {
-        query = query.eq('subType', filters.subType);
+        query = query.eq('sub_type', filters.subType);
       }
     }
-    
-    // Filter by search term
     if (filters.searchTerm) {
-      query = query.or(`title.ilike.%${filters.searchTerm}%,description.ilike.%${filters.searchTerm}%,location->city.ilike.%${filters.searchTerm}%`);
+      // Simple OR search for title, description, location.city
+      const term = filters.searchTerm.replace(/[%_]/g, '\\$&');
+      query = query.or([
+        `title.ilike.%${term}%`,
+        `description.ilike.%${term}%`,
+        `location->>city.ilike.%${term}%`
+      ].join(","));
     }
-    
     const { data, error } = await query;
     if (error) throw error;
-    return data || [];
+    return (data ?? []).map(fromDbProperty);
   } catch (error) {
     console.error("Error filtering properties:", error);
     throw error;
@@ -173,14 +241,13 @@ export const filterProperties = async (filters: any): Promise<Property[]> => {
 // User related services
 export const getUserData = async (userId: string): Promise<User> => {
   try {
-    const { data, error } = await (supabase
-      .from('users') as any)
+    const { data, error } = await supabase
+      .from('users')
       .select('*')
       .eq('id', userId)
-      .single();
-      
-    if (error) throw error;
-    return data;
+      .maybeSingle();
+    if (!data || error) throw error || new Error("Not found");
+    return fromDbUser(data);
   } catch (error) {
     console.error(`Error getting user with ID ${userId}:`, error);
     throw error;
@@ -189,40 +256,34 @@ export const getUserData = async (userId: string): Promise<User> => {
 
 export const toggleSavedProperty = async (userId: string, propertyId: string): Promise<boolean> => {
   try {
-    // First, check if property is already saved by this user
-    const { data: user, error: fetchError } = await (supabase
-      .from('users') as any)
-      .select('savedProperties')
+    const { data: user, error: fetchError } = await supabase
+      .from('users')
+      .select('saved_properties')
       .eq('id', userId)
-      .single();
-      
-    if (fetchError) throw fetchError;
-    
-    // Use optional chaining and provide default empty array
-    const savedProperties = user?.savedProperties || [];
+      .maybeSingle();
+    if (!user || fetchError) throw fetchError || new Error("User not found");
+
+    const savedProperties: string[] = user.saved_properties ?? [];
     const isAlreadySaved = savedProperties.includes(propertyId);
-    
-    // Update user's savedProperties array based on current state
+
     if (isAlreadySaved) {
-      // Remove property if already saved
-      const { error: updateError } = await (supabase
-        .from('users') as any)
+      // Remove property
+      const { error: updateError } = await supabase
+        .from('users')
         .update({
-          savedProperties: savedProperties.filter(id => id !== propertyId)
+          saved_properties: savedProperties.filter(id => id !== propertyId)
         })
         .eq('id', userId);
-        
       if (updateError) throw updateError;
       return false;
     } else {
-      // Add property if not saved
-      const { error: updateError } = await (supabase
-        .from('users') as any)
+      // Add property
+      const { error: updateError } = await supabase
+        .from('users')
         .update({
-          savedProperties: [...savedProperties, propertyId]
+          saved_properties: [...savedProperties, propertyId]
         })
         .eq('id', userId);
-        
       if (updateError) throw updateError;
       return true;
     }
@@ -234,27 +295,23 @@ export const toggleSavedProperty = async (userId: string, propertyId: string): P
 
 export const getSavedProperties = async (userId: string): Promise<Property[]> => {
   try {
-    // First get the user's saved property IDs
-    const { data: user, error: userError } = await (supabase
-      .from('users') as any)
-      .select('savedProperties')
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('saved_properties')
       .eq('id', userId)
-      .single();
-      
-    if (userError) throw userError;
-    
-    if (!user || !user.savedProperties || user.savedProperties.length === 0) {
+      .maybeSingle();
+
+    if (!user || userError) throw userError || new Error("User not found");
+    if (!user.saved_properties || user.saved_properties.length === 0) {
       return [];
     }
-    
-    // Then fetch the actual properties
-    const { data, error } = await (supabase
-      .from('properties') as any)
+    // Then fetch actual properties
+    const { data, error } = await supabase
+      .from('properties')
       .select('*')
-      .in('id', user.savedProperties);
-      
+      .in('id', user.saved_properties);
     if (error) throw error;
-    return data || [];
+    return (data ?? []).map(fromDbProperty);
   } catch (error) {
     console.error("Error getting saved properties:", error);
     throw error;
@@ -264,14 +321,14 @@ export const getSavedProperties = async (userId: string): Promise<Property[]> =>
 // Create or update a user record
 export const createOrUpdateUser = async (userData: Partial<User>): Promise<User> => {
   try {
-    const { data, error } = await (supabase
-      .from('users') as any)
-      .upsert(userData)
+    const upsertInput = toDbUserInput(userData);
+    const { data, error } = await supabase
+      .from('users')
+      .upsert(upsertInput)
       .select()
-      .single();
-      
-    if (error) throw error;
-    return data;
+      .maybeSingle();
+    if (error || !data) throw error || new Error("User upsert failed");
+    return fromDbUser(data);
   } catch (error) {
     console.error("Error creating or updating user:", error);
     throw error;
