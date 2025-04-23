@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { User, Property } from "@/types";
 import type { Database } from "@/integrations/supabase/types";
-import { fromDbProperty } from "@/services/propertyService";
+import { fromDbProperty } from "./property/propertyDataService";
 
 // Helper: Map DB user row to User type
 function fromDbUser(user: Database['public']['Tables']['users']['Row']): User {
