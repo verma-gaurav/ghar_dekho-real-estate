@@ -1,4 +1,3 @@
-
 // Services for property and user interactions with Supabase
 import { supabase } from "@/integrations/supabase/client";
 import { Property, User } from "@/types";
@@ -328,13 +327,27 @@ export const getSavedProperties = async (userId: string): Promise<Property[]> =>
 // Create or update a user record
 export const createOrUpdateUser = async (userData: Partial<User>): Promise<User> => {
   try {
+    // Make sure we have all required fields for a new user
+    if (!userData.id || !userData.email || !userData.name || !userData.phone || !userData.type) {
+      throw new Error("Missing required user data fields");
+    }
+    
     const upsertInput = toDbUserInput(userData);
     const { data, error } = await supabase
       .from('users')
       .upsert(upsertInput as any)
       .select()
       .maybeSingle();
-    if (error || !data) throw error || new Error("User upsert failed");
+    
+    if (error) {
+      console.error("Database error during user creation:", error);
+      throw error;
+    }
+    
+    if (!data) {
+      throw new Error("User upsert failed - no data returned");
+    }
+    
     return fromDbUser(data);
   } catch (error) {
     console.error("Error creating or updating user:", error);

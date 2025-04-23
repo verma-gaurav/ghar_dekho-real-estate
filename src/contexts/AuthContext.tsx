@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from "@/integrations/supabase/client";
 import { createOrUpdateUser } from "@/services/supabaseService";
 import { User as SupabaseUser } from '@supabase/supabase-js';
+import { toast } from "@/hooks/use-toast";
 
 interface User {
   id: string;
@@ -45,22 +46,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(userData);
           
           // Create or update user in our custom users table
-          try {
-            await createOrUpdateUser({
-              id: userData.id,
-              name: userData.name || '',
-              email: userData.email,
-              phone: userData.phone || '',
-              type: 'owner',
-              savedProperties: [],
-              listedProperties: [],
-              inquiries: [],
-              savedSearches: [],
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            });
-          } catch (error) {
-            console.error("Error creating/updating user:", error);
+          if (event === 'SIGNED_IN') {
+            try {
+              await createOrUpdateUser({
+                id: userData.id,
+                name: userData.name || '',
+                email: userData.email,
+                phone: userData.phone || '',
+                type: 'owner',
+                savedProperties: [],
+                listedProperties: [],
+                inquiries: [],
+                savedSearches: [],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              });
+            } catch (error) {
+              console.error("Error creating/updating user:", error);
+            }
           }
         } else {
           setUser(null);
@@ -90,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error, data } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -100,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (email: string, password: string, name: string, phone: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { error, data } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -112,6 +115,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     
     if (error) throw error;
+
+    // The user entry in our database will be created by the onAuthStateChange listener
+    // when the SIGNED_IN event is triggered after successful registration
     setShowAuthModal(false);
   };
 
