@@ -1,3 +1,4 @@
+
 import { useForm } from "react-hook-form";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ import { Property, PropertyPurpose, PropertyType, FurnishingStatus } from "@/typ
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { addProperty } from "@/services/supabaseService";
+import { addProperty } from "@/services/propertyService";
 import { supabase } from "@/integrations/supabase/client";
 
 const ListingForm = () => {

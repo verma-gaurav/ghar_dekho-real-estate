@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Property } from "@/types";
-import { getSavedProperties } from "@/services/supabaseService";
+import { getSavedProperties } from "@/services/userService";
 import { PropertyCard } from "@/components/ui/property-card";
 import { toast } from "@/hooks/use-toast";
 

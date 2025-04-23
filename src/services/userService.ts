@@ -1,7 +1,8 @@
 // User-related services for Supabase
 import { supabase } from "@/integrations/supabase/client";
-import { User } from "@/types";
+import { User, Property } from "@/types";
 import type { Database } from "@/integrations/supabase/types";
+import { fromDbProperty } from "@/services/propertyService";
 
 // Helper: Map DB user row to User type
 function fromDbUser(user: Database['public']['Tables']['users']['Row']): User {

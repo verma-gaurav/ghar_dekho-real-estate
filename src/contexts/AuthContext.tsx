@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from "@/integrations/supabase/client";
-import { createOrUpdateUser } from "@/services/supabaseService";
+import { createOrUpdateUser } from "@/services/userService";
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { toast } from "@/hooks/use-toast";
 
@@ -10,6 +10,7 @@ interface User {
   email: string;
   name?: string;
   phone?: string;
+  type?: string;
 }
 
 interface AuthContextType {

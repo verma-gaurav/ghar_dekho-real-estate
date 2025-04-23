@@ -4,7 +4,7 @@ import { HeartIcon, Phone, MessageSquare, Share2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { Property } from "@/types";
-import { toggleSavedProperty } from "@/services/supabaseService";
+import { toggleSavedProperty } from "@/services/userService";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface PropertyActionsProps {
