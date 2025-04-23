@@ -1,12 +1,10 @@
-
-// Property-related services for Supabase
 import { supabase } from "@/integrations/supabase/client";
 import { Property } from "@/types";
 import { v4 as uuidv4 } from 'uuid';
 import type { Database } from "@/integrations/supabase/types";
 
-// Helper: Convert DB property row to app Property type
-function fromDbProperty(row: Database['public']['Tables']['properties']['Row']): Property {
+// Export the helper function
+export function fromDbProperty(row: Database['public']['Tables']['properties']['Row']): Property {
   return {
     id: row.id,
     title: row.title,
