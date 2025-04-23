@@ -50,7 +50,6 @@ function toDbPropertyInput(p: Partial<Omit<Property, "id" | "createdAt" | "updat
     available_from: p.availability,
     posted_by: p.postedBy!,
     features: p.termsAndConditions as any,
-    // Remove references to createdAt and updatedAt since they don't exist on the input type
     created_at: undefined,
     updated_at: undefined, 
     property_score: p.propertyScore,
@@ -70,7 +69,9 @@ function fromDbUser(user: Database['public']['Tables']['users']['Row']): User {
     savedProperties: user.saved_properties ? user.saved_properties.map(id => id.toString()) : [],
     listedProperties: user.listed_properties ? user.listed_properties.map(id => id.toString()) : [],
     inquiries: user.inquiries ? user.inquiries.map(id => id.toString()) : [],
-    savedSearches: user.saved_searches ? [] : [], // Handling JSON to string array conversion
+    savedSearches: (user.saved_searches && Array.isArray(user.saved_searches))
+      ? user.saved_searches.map(s => typeof s === "string" ? s : JSON.stringify(s))
+      : [],
     createdAt: user.created_at,
     updatedAt: user.updated_at
   }

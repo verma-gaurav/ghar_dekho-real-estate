@@ -1,4 +1,3 @@
-
 import { useForm } from "react-hook-form";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -30,7 +29,7 @@ const ListingForm = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const form = useForm({
     defaultValues: {
       title: "",
@@ -65,37 +64,46 @@ const ListingForm = () => {
 
     try {
       setIsSubmitting(true);
-      
-      // Get current user details from Supabase
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      
-      if (userError) throw userError;
-      
+
       const propertyData = {
         ...data,
+        price: Number(data.price),
+        location: {
+          ...data.location,
+          city: data.location.city,
+          locality: data.location.locality,
+          address: data.location.address,
+          pincode: data.location.pincode,
+        },
+        details: {
+          bedrooms: data.details.bedrooms ? Number(data.details.bedrooms) : undefined,
+          bathrooms: data.details.bathrooms ? Number(data.details.bathrooms) : undefined,
+          furnishing: data.details.furnishing as FurnishingStatus,
+          carpetArea: data.details.carpetArea ? Number(data.details.carpetArea) : undefined,
+        },
         images: [
           "photo-1721322800607-8c38375eef04",
-          "photo-1487958449943-2429e8be8625"
+          "photo-1487958449943-2429e8be8625",
         ],
         amenities: [],
         postedBy: {
-          id: userData.user.id,
-          type: "owner",
-          name: userData.user.user_metadata?.full_name || "Property Owner",
+          id: user.id,
+          type: user.type,
+          name: user.name,
           contactInfo: {
-            email: userData.user.email || "",
-            phone: userData.user.user_metadata?.phone || "",
+            email: user.email,
+            phone: user.phone,
           },
         },
       };
 
       const newProperty = await addProperty(propertyData);
-      
+
       toast({
         title: "Success!",
         description: "Property has been listed successfully",
       });
-      
+
       navigate(`/property/${newProperty.id}`);
     } catch (error) {
       console.error("Error listing property:", error);
