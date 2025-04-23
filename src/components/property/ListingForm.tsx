@@ -1,6 +1,7 @@
 
 import { useForm } from "react-hook-form";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,14 +20,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Property, PropertyPurpose, PropertyType, FurnishingStatus } from "@/types";
-import { useNavigate } from "react-router-dom";
+import {
+  Property,
+  PropertyPurpose,
+  PropertyType,
+  FurnishingStatus,
+  ResidentialType,
+  CommercialType
+} from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "@/hooks/use-toast";
 import { addProperty } from "@/services/propertyService";
-import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
-const ListingForm = () => {
+interface ListingFormProps {
+  defaultPurpose?: PropertyPurpose;
+}
+
+const ListingForm = ({ defaultPurpose }: ListingFormProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,8 +44,9 @@ const ListingForm = () => {
   const form = useForm({
     defaultValues: {
       title: "",
-      purpose: "sell" as PropertyPurpose,
+      purpose: defaultPurpose || "sell" as PropertyPurpose,
       type: "residential" as PropertyType,
+      subType: "" as ResidentialType | CommercialType,
       price: "",
       description: "",
       location: {
@@ -52,6 +63,28 @@ const ListingForm = () => {
       },
     },
   });
+
+  const propertyType = form.watch("type");
+
+  const getSubTypeOptions = () => {
+    if (propertyType === "residential") {
+      return [
+        { value: "flat", label: "Flat/Apartment" },
+        { value: "house", label: "House/Villa" },
+        { value: "floor", label: "Floor" },
+        { value: "studio", label: "Studio Apartment" },
+        { value: "serviced", label: "Serviced Apartment" },
+        { value: "farmhouse", label: "Farmhouse" },
+      ];
+    }
+    return [
+      { value: "office", label: "Office Space" },
+      { value: "retail", label: "Retail" },
+      { value: "warehouse", label: "Warehouse" },
+      { value: "industrial-land", label: "Industrial Land" },
+      { value: "commercial-land", label: "Commercial Land" },
+    ];
+  };
 
   const onSubmit = async (data: any) => {
     if (!user) {
@@ -82,10 +115,7 @@ const ListingForm = () => {
           furnishing: data.details.furnishing as FurnishingStatus,
           carpetArea: data.details.carpetArea ? Number(data.details.carpetArea) : undefined,
         },
-        images: [
-          "photo-1721322800607-8c38375eef04",
-          "photo-1487958449943-2429e8be8625",
-        ],
+        images: [],
         amenities: [],
         postedBy: {
           id: user.id,
@@ -138,28 +168,6 @@ const ListingForm = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
             control={form.control}
-            name="type"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Property Type</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select property type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="residential">Residential</SelectItem>
-                    <SelectItem value="commercial">Commercial</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
             name="purpose"
             render={({ field }) => (
               <FormItem>
@@ -180,7 +188,54 @@ const ListingForm = () => {
               </FormItem>
             )}
           />
+
+          <FormField
+            control={form.control}
+            name="type"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Property Type</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select property type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="residential">Residential</SelectItem>
+                    <SelectItem value="commercial">Commercial</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
+
+        <FormField
+          control={form.control}
+          name="subType"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Property Sub-Type</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select property sub-type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {getSubTypeOptions().map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}
@@ -240,72 +295,74 @@ const ListingForm = () => {
           )}
         />
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <FormField
-            control={form.control}
-            name="details.bedrooms"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Bedrooms</FormLabel>
-                <FormControl>
-                  <Input type="number" placeholder="No. of bedrooms" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="details.bathrooms"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Bathrooms</FormLabel>
-                <FormControl>
-                  <Input type="number" placeholder="No. of bathrooms" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="details.carpetArea"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Carpet Area (sq.ft)</FormLabel>
-                <FormControl>
-                  <Input type="number" placeholder="Carpet area" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="details.furnishing"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Furnishing</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+        {propertyType === "residential" && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <FormField
+              control={form.control}
+              name="details.bedrooms"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bedrooms</FormLabel>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
+                    <Input type="number" placeholder="No. of bedrooms" {...field} />
                   </FormControl>
-                  <SelectContent>
-                    <SelectItem value="furnished">Furnished</SelectItem>
-                    <SelectItem value="semi-furnished">Semi-Furnished</SelectItem>
-                    <SelectItem value="unfurnished">Unfurnished</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="details.bathrooms"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bathrooms</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="No. of bathrooms" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="details.carpetArea"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Carpet Area (sq.ft)</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="Carpet area" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="details.furnishing"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Furnishing</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="furnished">Furnished</SelectItem>
+                      <SelectItem value="semi-furnished">Semi-Furnished</SelectItem>
+                      <SelectItem value="unfurnished">Unfurnished</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        )}
 
         <FormField
           control={form.control}
