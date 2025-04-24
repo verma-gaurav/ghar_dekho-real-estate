@@ -18,7 +18,6 @@ export const useListingSubmit = () => {
     if (!user) {
       toast("Authentication required", {
         description: "Please login to list a property",
-        variant: "destructive",
       });
       return;
     }
@@ -88,7 +87,6 @@ export const useListingSubmit = () => {
       console.error("Error listing property:", error);
       toast("Error", {
         description: "Failed to list property. Please try again.",
-        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);

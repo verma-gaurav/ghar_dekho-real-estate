@@ -28,7 +28,6 @@ export default function AuthModal() {
     if (!loginEmail || !loginPassword) {
       toast("Please fill in all fields", {
         description: "Email and password are required",
-        variant: "destructive",
       });
       return;
     }
@@ -43,7 +42,6 @@ export default function AuthModal() {
       console.error("Login error:", error);
       toast("Login failed", {
         description: error.message || "Please check your credentials and try again",
-        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -56,7 +54,6 @@ export default function AuthModal() {
     if (!registerName || !registerEmail || !registerPhone || !registerPassword) {
       toast("Missing fields", {
         description: "Please fill in all fields",
-        variant: "destructive",
       });
       return;
     }
@@ -71,7 +68,6 @@ export default function AuthModal() {
       console.error("Register error:", error);
       toast("Registration failed", {
         description: error.message || "There was an error creating your account",
-        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
