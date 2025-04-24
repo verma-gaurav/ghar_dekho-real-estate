@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { createOrUpdateUser, getUserData } from "@/services/userService";
-import { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { Session } from '@supabase/supabase-js';
 import { toast } from "@/components/ui/sonner";
 import { User } from "@/types";
 
@@ -55,20 +55,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               } catch (error) {
                 console.log("User not found in database, creating profile...");
                 // If user doesn't exist in our DB yet, create them
-                const newUser = await createOrUpdateUser({
-                  id: basicUserData.id,
-                  name: basicUserData.name || '',
-                  email: basicUserData.email,
-                  phone: basicUserData.phone || '',
-                  type: basicUserData.type || 'owner',
-                  savedProperties: [],
-                  listedProperties: [],
-                  inquiries: [],
-                  savedSearches: [],
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                });
-                setUser(newUser);
+                try {
+                  const newUser = await createOrUpdateUser({
+                    id: basicUserData.id,
+                    name: basicUserData.name || '',
+                    email: basicUserData.email,
+                    phone: basicUserData.phone || '',
+                    type: basicUserData.type || 'owner',
+                    savedProperties: [],
+                    listedProperties: [],
+                    inquiries: [],
+                    savedSearches: [],
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  });
+                  console.log("User created in database:", newUser);
+                  setUser(newUser);
+                } catch (createError) {
+                  console.error("Failed to create user in database:", createError);
+                  toast("Error", {
+                    description: "Failed to create your user profile. Please try again.",
+                  });
+                }
               }
             }, 0);
           } catch (error) {
@@ -103,7 +111,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const completeUserData = await getUserData(session.user.id);
             setUser(completeUserData);
           } catch (error) {
-            console.log("Couldn't fetch complete user data:", error);
+            console.log("User not found in database, creating profile...");
+            try {
+              const newUser = await createOrUpdateUser({
+                id: basicUserData.id,
+                name: basicUserData.name || '',
+                email: basicUserData.email,
+                phone: basicUserData.phone || '',
+                type: basicUserData.type || 'owner',
+                savedProperties: [],
+                listedProperties: [],
+                inquiries: [],
+                savedSearches: [],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              });
+              console.log("User created in database:", newUser);
+              setUser(newUser);
+            } catch (createError) {
+              console.error("Failed to create user in database:", createError);
+            }
           }
         }, 0);
       }
@@ -133,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       options: {
         data: {
           full_name: name,
+          name: name, // Add both to ensure consistency
           phone,
           type: 'owner', // Default type
         }
@@ -140,6 +168,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     
     if (error) throw error;
+    
+    // We'll handle user creation in the database through onAuthStateChange
+    // to ensure we have the authenticated user's ID
     setShowAuthModal(false);
   };
 

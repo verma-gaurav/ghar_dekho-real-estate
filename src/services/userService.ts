@@ -1,3 +1,4 @@
+
 // User-related services for Supabase
 import { supabase } from "@/integrations/supabase/client";
 import { User, Property } from "@/types";
@@ -36,7 +37,7 @@ function toDbUserInput(user: Partial<User>): Database['public']['Tables']['users
     listed_properties: user.listedProperties as any[] ?? [],
     inquiries: user.inquiries as any[] ?? [],
     saved_searches: user.savedSearches as any[] ?? [],
-    created_at: undefined,
+    created_at: undefined, // Let the database set these
     updated_at: undefined,
     email_verified: false,
     phone_verified: false,
@@ -132,6 +133,7 @@ export const createOrUpdateUser = async (userData: Partial<User>): Promise<User>
       throw new Error("Missing required user data fields");
     }
     
+    console.log("Creating or updating user in database:", userData);
     const upsertInput = toDbUserInput(userData);
     const { data, error } = await supabase
       .from('users')
@@ -148,6 +150,7 @@ export const createOrUpdateUser = async (userData: Partial<User>): Promise<User>
       throw new Error("User upsert failed - no data returned");
     }
     
+    console.log("User created or updated successfully:", data);
     return fromDbUser(data);
   } catch (error) {
     console.error("Error creating or updating user:", error);
