@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { PropertyCard } from "@/components/ui/property-card";
@@ -10,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Building, Home as HomeIcon, User, MapPin, ArrowRight, Check, Search, Filter, Bell } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import database from "@/services/database";
+import { getAllProperties, filterProperties } from "@/services/propertyService";
+import { useState as useReactState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Home() {
   const location = useLocation();
@@ -21,7 +22,11 @@ export default function Home() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
 
-  // Determine the active tab based on the current route
+  const { data: properties, isLoading, error } = useQuery({
+    queryKey: ['properties'],
+    queryFn: getAllProperties
+  });
+
   useEffect(() => {
     const path = location.pathname.split("/")[1];
     if (path === "buy") setActiveTab("buy");
@@ -31,67 +36,100 @@ export default function Home() {
     else setActiveTab("all");
   }, [location]);
 
-  // Initial load of properties
   useEffect(() => {
-    const allProperties = database.getAllProperties();
-    setFilteredProperties(allProperties);
-    
-    // Filter properties based on current tab
-    filterByTab(activeTab);
-  }, [activeTab]);
+    if (properties) {
+      filterByTab(activeTab);
+    }
+  }, [activeTab, properties]);
 
-  const handleSearch = (filters: any) => {
-    const filtered = database.filterProperties(filters);
-    setFilteredProperties(filtered);
+  const handleSearch = async (filters: any) => {
+    try {
+      const filtered = await filterProperties(filters);
+      setFilteredProperties(filtered);
+    } catch (error) {
+      console.error("Error filtering properties:", error);
+      if (properties) {
+        let filtered = [...properties];
+        if (filters.purpose) {
+          if (filters.purpose === "buy") {
+            filtered = filtered.filter(p => p.purpose === "sell");
+          } else {
+            filtered = filtered.filter(p => p.purpose === filters.purpose);
+          }
+        }
+        if (filters.searchTerm) {
+          const term = filters.searchTerm.toLowerCase();
+          filtered = filtered.filter(p => 
+            p.title.toLowerCase().includes(term) ||
+            p.description.toLowerCase().includes(term) ||
+            p.location.city.toLowerCase().includes(term)
+          );
+        }
+        setFilteredProperties(filtered);
+      }
+    }
   };
 
-  const handleAdvancedFilters = (filters: any) => {
-    const filtered = database.filterProperties(filters);
-    setFilteredProperties(filtered);
-    setAdvancedFiltersOpen(false);
+  const handleAdvancedFilters = async (filters: any) => {
+    try {
+      const filtered = await filterProperties(filters);
+      setFilteredProperties(filtered);
+      setAdvancedFiltersOpen(false);
+    } catch (error) {
+      console.error("Error applying advanced filters:", error);
+    }
   };
 
   const filterByTab = (tab: string) => {
     setActiveTab(tab as any);
     
-    // Update URL to match the selected tab
     if (tab !== "all") {
       navigate(`/${tab}`);
     } else {
       navigate("/");
     }
     
-    // Filter properties based on tab
-    const allProperties = database.getAllProperties();
+    if (!properties) {
+      setFilteredProperties([]);
+      return;
+    }
     
     if (tab === "all") {
-      setFilteredProperties(allProperties);
+      setFilteredProperties(properties);
       return;
     }
     
     if (tab === "buy") {
-      setFilteredProperties(allProperties.filter(p => p.purpose === "sell"));
+      setFilteredProperties(properties.filter(p => p.purpose === "sell"));
       return;
     }
     
-    setFilteredProperties(allProperties.filter(p => p.purpose === tab));
+    setFilteredProperties(properties.filter(p => p.purpose === tab));
   };
 
-  const handleBasicSearch = () => {
-    if (!searchQuery.trim()) return;
+  const handleBasicSearch = async () => {
+    if (!searchQuery.trim()) {
+      if (properties) {
+        filterByTab(activeTab);
+      }
+      return;
+    }
     
     const filters = {
       searchTerm: searchQuery,
       purpose: activeTab === "buy" ? "sell" : activeTab === "all" ? undefined : activeTab
     };
     
-    const filtered = database.filterProperties(filters);
-    setFilteredProperties(filtered);
+    try {
+      const filtered = await filterProperties(filters);
+      setFilteredProperties(filtered);
+    } catch (error) {
+      console.error("Error in basic search:", error);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
       <section className="relative bg-white py-12 md:py-20">
         <div className="absolute inset-0 bg-gradient-to-r from-estate-100 to-white z-0 opacity-50"></div>
         <div className="container relative z-10">
@@ -268,7 +306,9 @@ export default function Home() {
                 <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-lg shadow-lg">
                   <div className="flex items-center space-x-2">
                     <Badge className="bg-estate-300 text-white px-2 py-1">Top Rated</Badge>
-                    <Badge className="bg-white text-estate-700 px-2 py-1 border border-estate-200">5000+ Properties</Badge>
+                    <Badge className="bg-white text-estate-700 px-2 py-1 border border-estate-200">
+                      {properties?.length || 0}+ Properties
+                    </Badge>
                   </div>
                 </div>
               </div>
@@ -277,7 +317,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Property Categories */}
       <section className="py-12 bg-white">
         <div className="container">
           <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">
@@ -332,7 +371,6 @@ export default function Home() {
         </div>
       </section>
       
-      {/* Post Property CTA */}
       <section className="py-10 bg-estate-100">
         <div className="container">
           <div className="flex flex-col md:flex-row md:items-center justify-between">
@@ -347,7 +385,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Properties */}
       <section className="py-12 bg-gray-50">
         <div className="container">
           <div className="flex justify-between items-center mb-8">
@@ -372,38 +409,61 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProperties.slice(0, 6).map((property) => (
-              <PropertyCard key={property.id} property={property} />
-            ))}
-          </div>
-          
-          {filteredProperties.length === 0 && (
+          {isLoading ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, index) => (
+                <div key={index} className="bg-white p-4 rounded-lg shadow-sm h-80 animate-pulse">
+                  <div className="bg-gray-200 h-40 rounded-md mb-4"></div>
+                  <div className="bg-gray-200 h-6 rounded-md w-3/4 mb-2"></div>
+                  <div className="bg-gray-200 h-4 rounded-md w-1/2 mb-2"></div>
+                  <div className="bg-gray-200 h-4 rounded-md w-2/3"></div>
+                </div>
+              ))}
+            </div>
+          ) : error ? (
             <div className="text-center py-12">
-              <div className="text-5xl mb-4">😔</div>
-              <h3 className="text-xl font-semibold mb-2">No Properties Found</h3>
-              <p className="text-muted-foreground mb-6">Try adjusting your search filters to find more properties.</p>
-              <Button onClick={() => {
-                setSearchQuery("");
-                filterByTab(activeTab);
-              }}>
-                Reset Filters
-              </Button>
+              <div className="text-5xl mb-4">⚠️</div>
+              <h3 className="text-xl font-semibold mb-2">Error Loading Properties</h3>
+              <p className="text-muted-foreground mb-6">
+                There was a problem loading properties. Please try again later.
+              </p>
+              <Button onClick={() => window.location.reload()}>Retry</Button>
             </div>
-          )}
-          
-          {filteredProperties.length > 6 && (
-            <div className="text-center mt-8">
-              <Button variant="outline" className="group" onClick={() => setShowAdvancedFilters(true)}>
-                View All Properties 
-                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Button>
-            </div>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProperties.length > 0 ? (
+                  filteredProperties.slice(0, 6).map((property) => (
+                    <PropertyCard key={property.id} property={property} />
+                  ))
+                ) : (
+                  <div className="col-span-3 text-center py-12">
+                    <div className="text-5xl mb-4">😔</div>
+                    <h3 className="text-xl font-semibold mb-2">No Properties Found</h3>
+                    <p className="text-muted-foreground mb-6">Try adjusting your search filters to find more properties.</p>
+                    <Button onClick={() => {
+                      setSearchQuery("");
+                      filterByTab(activeTab);
+                    }}>
+                      Reset Filters
+                    </Button>
+                  </div>
+                )}
+              </div>
+              
+              {filteredProperties.length > 6 && (
+                <div className="text-center mt-8">
+                  <Button variant="outline" className="group" onClick={() => setShowAdvancedFilters(true)}>
+                    View All Properties 
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
 
-      {/* Why Choose Us */}
       <section className="py-16 bg-white">
         <div className="container">
           <div className="text-center mb-12">
@@ -447,7 +507,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Properties with Advanced Search */}
       {showAdvancedFilters && (
         <section className="py-12 bg-gray-50">
           <div className="container">
@@ -477,7 +536,6 @@ export default function Home() {
         </section>
       )}
       
-      {/* Email Alerts Section */}
       <section className="py-12 bg-estate-100">
         <div className="container">
           <div className="max-w-3xl mx-auto text-center">

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { addProperty } from "@/services/propertyService";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/components/ui/sonner";
 import { ListingFormValues } from "../types";
 import { ResidentialType, CommercialType, UserType, PropertyAge } from "@/types";
 
@@ -11,11 +11,12 @@ export const useListingSubmit = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submittedPropertyId, setSubmittedPropertyId] = useState<string | null>(null);
+  const [showThankYouDialog, setShowThankYouDialog] = useState(false);
 
   const handleSubmit = async (data: ListingFormValues) => {
     if (!user) {
-      toast({
-        title: "Authentication required",
+      toast("Authentication required", {
         description: "Please login to list a property",
         variant: "destructive",
       });
@@ -80,17 +81,12 @@ export const useListingSubmit = () => {
       };
 
       const newProperty = await addProperty(propertyData);
-
-      toast({
-        title: "Success!",
-        description: "Property has been listed successfully",
-      });
-
-      navigate(`/property/${newProperty.id}`);
+      setSubmittedPropertyId(newProperty.id);
+      setShowThankYouDialog(true);
+      
     } catch (error) {
       console.error("Error listing property:", error);
-      toast({
-        title: "Error",
+      toast("Error", {
         description: "Failed to list property. Please try again.",
         variant: "destructive",
       });
@@ -99,5 +95,23 @@ export const useListingSubmit = () => {
     }
   };
 
-  return { handleSubmit, isSubmitting };
+  const handleViewProperty = () => {
+    setShowThankYouDialog(false);
+    if (submittedPropertyId) {
+      navigate(`/property/${submittedPropertyId}`);
+    }
+  };
+
+  const handleReturnHome = () => {
+    setShowThankYouDialog(false);
+    navigate('/');
+  };
+
+  return { 
+    handleSubmit, 
+    isSubmitting, 
+    showThankYouDialog, 
+    handleViewProperty, 
+    handleReturnHome 
+  };
 };

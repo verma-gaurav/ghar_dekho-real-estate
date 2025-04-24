@@ -2,8 +2,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { createOrUpdateUser } from "@/services/userService";
-import { User as SupabaseUser } from '@supabase/supabase-js';
-import { toast } from "@/hooks/use-toast";
+import { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { toast } from "@/components/ui/sonner";
 
 interface User {
   id: string;
@@ -30,12 +30,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setIsAuthenticated(!!session);
+        setSession(session);
         
         if (session?.user) {
           const userData = {
@@ -43,27 +45,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: session.user.email || '',
             name: session.user.user_metadata?.name || session.user.user_metadata?.full_name,
             phone: session.user.user_metadata?.phone,
+            type: session.user.user_metadata?.type || 'owner',
           };
           setUser(userData);
           
           // Create or update user in our custom users table
           if (event === 'SIGNED_IN') {
             try {
-              await createOrUpdateUser({
-                id: userData.id,
-                name: userData.name || '',
-                email: userData.email,
-                phone: userData.phone || '',
-                type: 'owner',
-                savedProperties: [],
-                listedProperties: [],
-                inquiries: [],
-                savedSearches: [],
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              });
+              // Use setTimeout to prevent blocking the auth state change
+              setTimeout(async () => {
+                try {
+                  await createOrUpdateUser({
+                    id: userData.id,
+                    name: userData.name || '',
+                    email: userData.email,
+                    phone: userData.phone || '',
+                    type: userData.type || 'owner',
+                    savedProperties: [],
+                    listedProperties: [],
+                    inquiries: [],
+                    savedSearches: [],
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  });
+                } catch (error) {
+                  console.error("Error creating/updating user:", error);
+                }
+              }, 0);
             } catch (error) {
-              console.error("Error creating/updating user:", error);
+              console.error("Error setting up user update:", error);
             }
           }
         } else {
@@ -75,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setIsAuthenticated(!!session);
+      setSession(session);
       
       if (session?.user) {
         setUser({
@@ -82,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: session.user.email || '',
           name: session.user.user_metadata?.name || session.user.user_metadata?.full_name,
           phone: session.user.user_metadata?.phone,
+          type: session.user.user_metadata?.type || 'owner',
         });
       }
       
@@ -111,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: {
           full_name: name,
           phone,
+          type: 'owner', // Default type
         }
       }
     });

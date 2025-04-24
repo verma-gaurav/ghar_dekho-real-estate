@@ -7,12 +7,11 @@ import { PropertyPurpose } from "@/types";
 
 export default function ListProperty() {
   const navigate = useNavigate();
-  const { isAuthenticated, setShowAuthModal } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { purpose } = useParams<{ purpose?: PropertyPurpose }>();
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setShowAuthModal(true);
       navigate('/');
       return;
     }
@@ -21,7 +20,7 @@ export default function ListProperty() {
     if (purpose && !["sell", "rent", "pg"].includes(purpose)) {
       navigate('/list-property');
     }
-  }, [isAuthenticated, navigate, setShowAuthModal, purpose]);
+  }, [isAuthenticated, navigate, purpose]);
 
   if (!isAuthenticated) {
     return null;

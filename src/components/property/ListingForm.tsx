@@ -10,6 +10,8 @@ import { StepMediaUpload } from "./listing-form/steps/StepMediaUpload";
 import { StepAdditionalDetails } from "./listing-form/steps/StepAdditionalDetails";
 import { StepIndicator } from "./listing-form/StepIndicator";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CheckCircle } from "lucide-react";
 
 interface ListingFormProps {
   defaultPurpose?: PropertyPurpose;
@@ -24,7 +26,13 @@ const ListingForm = ({ defaultPurpose }: ListingFormProps) => {
     handlePrevStep,
   } = useListingForm(defaultPurpose);
   
-  const { handleSubmit, isSubmitting } = useListingSubmit();
+  const { 
+    handleSubmit, 
+    isSubmitting, 
+    showThankYouDialog, 
+    handleViewProperty, 
+    handleReturnHome 
+  } = useListingSubmit();
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -75,6 +83,29 @@ const ListingForm = ({ defaultPurpose }: ListingFormProps) => {
             )}
           </div>
         </form>
+
+        {/* Thank You Dialog */}
+        <Dialog open={showThankYouDialog} onOpenChange={() => false}>
+          <DialogContent>
+            <DialogHeader>
+              <div className="flex flex-col items-center text-center">
+                <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
+                <DialogTitle className="text-2xl">Thank You!</DialogTitle>
+                <DialogDescription className="mt-2 text-lg">
+                  Your property has been successfully listed.
+                </DialogDescription>
+              </div>
+            </DialogHeader>
+            <DialogFooter className="flex flex-col sm:flex-row gap-3">
+              <Button onClick={handleReturnHome} variant="outline" className="flex-1">
+                Return to Home
+              </Button>
+              <Button onClick={handleViewProperty} className="flex-1">
+                View Your Property
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </FormProvider>
   );

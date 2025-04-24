@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/components/ui/sonner";
 
 export default function AuthModal() {
   const { showAuthModal, setShowAuthModal, login, register } = useAuth();
@@ -26,9 +26,8 @@ export default function AuthModal() {
     e.preventDefault();
     
     if (!loginEmail || !loginPassword) {
-      toast({
-        title: "Missing fields",
-        description: "Please fill in all fields",
+      toast("Please fill in all fields", {
+        description: "Email and password are required",
         variant: "destructive",
       });
       return;
@@ -37,14 +36,12 @@ export default function AuthModal() {
     try {
       setIsLoading(true);
       await login(loginEmail, loginPassword);
-      toast({
-        title: "Login successful",
+      toast("Login successful", {
         description: "Welcome back!",
       });
     } catch (error: any) {
       console.error("Login error:", error);
-      toast({
-        title: "Login failed",
+      toast("Login failed", {
         description: error.message || "Please check your credentials and try again",
         variant: "destructive",
       });
@@ -57,8 +54,7 @@ export default function AuthModal() {
     e.preventDefault();
     
     if (!registerName || !registerEmail || !registerPhone || !registerPassword) {
-      toast({
-        title: "Missing fields",
+      toast("Missing fields", {
         description: "Please fill in all fields",
         variant: "destructive",
       });
@@ -68,14 +64,12 @@ export default function AuthModal() {
     try {
       setIsLoading(true);
       await register(registerEmail, registerPassword, registerName, registerPhone);
-      toast({
-        title: "Registration successful",
+      toast("Registration successful", {
         description: "Your account has been created!",
       });
     } catch (error: any) {
       console.error("Register error:", error);
-      toast({
-        title: "Registration failed",
+      toast("Registration failed", {
         description: error.message || "There was an error creating your account",
         variant: "destructive",
       });
