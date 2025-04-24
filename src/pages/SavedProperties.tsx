@@ -5,21 +5,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Property } from "@/types";
 import { getSavedProperties } from "@/services/userService";
 import { PropertyCard } from "@/components/ui/property-card";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/components/ui/sonner";
 
 export default function SavedProperties() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, setShowAuthModal } = useAuth();
+  const { user } = useAuth();
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
-      navigate('/');
-      return;
-    }
-
     const fetchSavedProperties = async () => {
       try {
         setIsLoading(true);
@@ -29,10 +23,8 @@ export default function SavedProperties() {
         }
       } catch (error) {
         console.error("Error fetching saved properties:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load your saved properties.",
-          variant: "destructive",
+        toast("Error", {
+          description: "Failed to load your saved properties."
         });
       } finally {
         setIsLoading(false);
@@ -40,11 +32,7 @@ export default function SavedProperties() {
     };
 
     fetchSavedProperties();
-  }, [isAuthenticated, navigate, setShowAuthModal, user?.id]);
-
-  if (!isAuthenticated) {
-    return null;
-  }
+  }, [user?.id]);
 
   return (
     <div className="container py-8">
