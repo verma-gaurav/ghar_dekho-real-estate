@@ -1,6 +1,5 @@
-
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,8 +16,7 @@ import { User } from "lucide-react";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
+  const { user } = useAuth();
   
   const [property, setProperty] = useState<Property | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -33,8 +31,7 @@ export default function PropertyDetail() {
         const fetchedProperty = await getPropertyById(id);
         setProperty(fetchedProperty);
         
-        // Check if this property is in user's saved properties
-        if (isAuthenticated && user) {
+        if (user) {
           const savedProperties = await getSavedProperties(user.id);
           setIsSaved(savedProperties.some(p => p.id === id));
         }
@@ -49,7 +46,7 @@ export default function PropertyDetail() {
     };
     
     fetchPropertyDetails();
-  }, [id, isAuthenticated, user]);
+  }, [id, user]);
 
   const handleSaveProperty = async () => {
     if (!property || !user) return;

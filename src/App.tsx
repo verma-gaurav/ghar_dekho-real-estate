@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
+import { PrivateRoute } from "@/components/auth/PrivateRoute";
 import Home from "./pages/Home";
 import PropertyDetail from "./pages/PropertyDetail";
 import ListProperty from "./pages/ListProperty";
@@ -31,10 +32,38 @@ const App = () => (
               <Route path="/rent" element={<Home />} />
               <Route path="/pg" element={<Home />} />
               <Route path="/commercial" element={<Home />} />
-              <Route path="/list-property" element={<ListProperty />} />
-              <Route path="/list-property/:purpose" element={<ListProperty />} />
-              <Route path="/property/:id" element={<PropertyDetail />} />
-              <Route path="/saved-properties" element={<SavedProperties />} />
+              <Route 
+                path="/list-property" 
+                element={
+                  <PrivateRoute>
+                    <ListProperty />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/list-property/:purpose" 
+                element={
+                  <PrivateRoute>
+                    <ListProperty />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/property/:id" 
+                element={
+                  <PrivateRoute>
+                    <PropertyDetail />
+                  </PrivateRoute>
+                } 
+              />
+              <Route 
+                path="/saved-properties" 
+                element={
+                  <PrivateRoute>
+                    <SavedProperties />
+                  </PrivateRoute>
+                } 
+              />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </main>
