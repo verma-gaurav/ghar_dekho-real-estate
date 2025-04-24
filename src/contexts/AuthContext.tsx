@@ -1,17 +1,10 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from "@/integrations/supabase/client";
-import { createOrUpdateUser } from "@/services/userService";
+import { createOrUpdateUser, getUserData } from "@/services/userService";
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { toast } from "@/components/ui/sonner";
-
-interface User {
-  id: string;
-  email: string;
-  name?: string;
-  phone?: string;
-  type?: string;
-}
+import { User } from "@/types";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -40,41 +33,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         
         if (session?.user) {
-          const userData = {
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata?.name || session.user.user_metadata?.full_name,
-            phone: session.user.user_metadata?.phone,
-            type: session.user.user_metadata?.type || 'owner',
-          };
-          setUser(userData);
-          
-          // Create or update user in our custom users table
-          if (event === 'SIGNED_IN') {
-            try {
-              // Use setTimeout to prevent blocking the auth state change
-              setTimeout(async () => {
-                try {
-                  await createOrUpdateUser({
-                    id: userData.id,
-                    name: userData.name || '',
-                    email: userData.email,
-                    phone: userData.phone || '',
-                    type: userData.type || 'owner',
-                    savedProperties: [],
-                    listedProperties: [],
-                    inquiries: [],
-                    savedSearches: [],
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                  });
-                } catch (error) {
-                  console.error("Error creating/updating user:", error);
-                }
-              }, 0);
-            } catch (error) {
-              console.error("Error setting up user update:", error);
-            }
+          try {
+            // Only update state synchronously here
+            const basicUserData = {
+              id: session.user.id,
+              email: session.user.email || '',
+              name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || '',
+              phone: session.user.user_metadata?.phone || '',
+              type: session.user.user_metadata?.type || 'owner',
+            };
+            
+            // Do a minimal update first
+            setUser(basicUserData as User);
+            
+            // Then use setTimeout to avoid blocking the auth state change
+            setTimeout(async () => {
+              try {
+                // First try to get the complete user profile from our database
+                const completeUserData = await getUserData(session.user.id);
+                setUser(completeUserData);
+              } catch (error) {
+                console.log("User not found in database, creating profile...");
+                // If user doesn't exist in our DB yet, create them
+                const newUser = await createOrUpdateUser({
+                  id: basicUserData.id,
+                  name: basicUserData.name || '',
+                  email: basicUserData.email,
+                  phone: basicUserData.phone || '',
+                  type: basicUserData.type || 'owner',
+                  savedProperties: [],
+                  listedProperties: [],
+                  inquiries: [],
+                  savedSearches: [],
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                });
+                setUser(newUser);
+              }
+            }, 0);
+          } catch (error) {
+            console.error("Error setting up user data:", error);
           }
         } else {
           setUser(null);
@@ -88,13 +86,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       
       if (session?.user) {
-        setUser({
+        const basicUserData = {
           id: session.user.id,
           email: session.user.email || '',
-          name: session.user.user_metadata?.name || session.user.user_metadata?.full_name,
-          phone: session.user.user_metadata?.phone,
+          name: session.user.user_metadata?.name || session.user.user_metadata?.full_name || '',
+          phone: session.user.user_metadata?.phone || '',
           type: session.user.user_metadata?.type || 'owner',
-        });
+        };
+        
+        // Set basic user data immediately
+        setUser(basicUserData as User);
+        
+        // Then fetch the complete profile
+        setTimeout(async () => {
+          try {
+            const completeUserData = await getUserData(session.user.id);
+            setUser(completeUserData);
+          } catch (error) {
+            console.log("Couldn't fetch complete user data:", error);
+          }
+        }, 0);
       }
       
       setIsLoading(false);
@@ -129,9 +140,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     
     if (error) throw error;
-
-    // The user entry in our database will be created by the onAuthStateChange listener
-    // when the SIGNED_IN event is triggered after successful registration
     setShowAuthModal(false);
   };
 

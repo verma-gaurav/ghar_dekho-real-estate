@@ -1,75 +1,83 @@
-import { User } from "lucide-react";
-import { useState, useEffect } from "react";
+
+import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Property } from "@/types";
-import database from "@/services/database";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/components/ui/sonner";
 import { PropertyDetailSkeleton } from "@/components/property/PropertyDetailSkeleton";
 import { PropertyImages } from "@/components/property/PropertyImages";
 import { PropertyHeader } from "@/components/property/PropertyHeader";
 import { PropertyActions } from "@/components/property/PropertyActions";
 import { PropertyDetails } from "@/components/property/PropertyDetails";
+import { getPropertyById } from "@/services/propertyService";
+import { toggleSavedProperty, getSavedProperties } from "@/services/userService";
+import { User } from "lucide-react";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated, setShowAuthModal } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   
   const [property, setProperty] = useState<Property | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
   
   useEffect(() => {
-    if (!isAuthenticated) {
-      setShowAuthModal(true);
-      navigate('/');
-      return;
-    }
-    
-    if (id) {
-      const fetchedProperty = database.getPropertyById(id);
-      
-      if (fetchedProperty) {
-        setProperty(fetchedProperty);
-        database.updateProperty(id, { views: fetchedProperty.views + 1 });
-        
-        const currentUser = database.getUserById("user1");
-        if (currentUser) {
-          setIsSaved(currentUser.savedProperties.includes(id));
-        }
-      }
-      
-      setLoading(false);
-    }
-  }, [id, isAuthenticated, navigate, setShowAuthModal]);
+    if (!id) return;
 
-  const handleSaveProperty = () => {
-    if (!property) return;
+    const fetchPropertyDetails = async () => {
+      try {
+        setLoading(true);
+        const fetchedProperty = await getPropertyById(id);
+        setProperty(fetchedProperty);
+        
+        // Check if this property is in user's saved properties
+        if (isAuthenticated && user) {
+          const savedProperties = await getSavedProperties(user.id);
+          setIsSaved(savedProperties.some(p => p.id === id));
+        }
+      } catch (error) {
+        console.error("Error fetching property:", error);
+        toast("Error", {
+          description: "Could not load property details."
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    const saved = database.toggleSavedProperty("user1", property.id);
-    setIsSaved(saved);
+    fetchPropertyDetails();
+  }, [id, isAuthenticated, user]);
+
+  const handleSaveProperty = async () => {
+    if (!property || !user) return;
     
-    if (saved) {
-      toast({
-        title: "Property Saved",
-        description: "This property has been added to your saved properties.",
-      });
-    } else {
-      toast({
-        title: "Property Removed",
-        description: "This property has been removed from your saved properties.",
-        variant: "destructive",
+    try {
+      const saved = await toggleSavedProperty(user.id, property.id);
+      setIsSaved(saved);
+      
+      if (saved) {
+        toast("Property Saved", {
+          description: "This property has been added to your saved properties."
+        });
+      } else {
+        toast("Property Removed", {
+          description: "This property has been removed from your saved properties."
+        });
+      }
+    } catch (error) {
+      console.error("Error saving property:", error);
+      toast("Error", {
+        description: "Could not save this property. Please try again."
       });
     }
   };
 
   const handleContactOwner = () => {
-    toast({
-      title: "Contact Request Sent",
-      description: "The property owner will get back to you soon.",
+    toast("Contact Request Sent", {
+      description: "The property owner will get back to you soon."
     });
   };
 
