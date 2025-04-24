@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm, FormProvider } from "react-hook-form";
@@ -8,7 +7,12 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { addProperty } from "@/services/propertyService";
-import { PropertyPurpose, PropertyType } from "@/types";
+import { 
+  PropertyPurpose, 
+  PropertyType, 
+  ResidentialType, 
+  CommercialType 
+} from "@/types";
 import { StepBasicDetails } from "./listing-form/steps/StepBasicDetails";
 import { StepLocationDetails } from "./listing-form/steps/StepLocationDetails";
 import { StepPropertyProfile } from "./listing-form/steps/StepPropertyProfile";
@@ -247,11 +251,20 @@ const ListingForm = ({ defaultPurpose }: ListingFormProps) => {
       setIsSubmitting(true);
       
       // Process form data for submission
+      // Ensure subType is properly typed based on property type
+      let typedSubType: ResidentialType | CommercialType;
+      
+      if (data.type === "residential") {
+        typedSubType = data.subType as ResidentialType;
+      } else {
+        typedSubType = data.subType as CommercialType;
+      }
+      
       const propertyData = {
         title: data.title,
         purpose: data.purpose,
         type: data.type,
-        subType: data.subType,
+        subType: typedSubType,
         price: Number(data.price),
         securityDeposit: data.securityDeposit ? Number(data.securityDeposit) : undefined,
         description: data.description,

@@ -21,12 +21,12 @@ export const PropertyDescription = () => {
         <FormItem>
           <FormLabel>Description</FormLabel>
           <FormDescription>
-            Provide a detailed description of your property. Highlight unique features, location benefits, etc.
+            Provide a detailed description of your property. Highlight unique features, location benefits, and why a buyer or tenant should choose this property.
           </FormDescription>
           <FormControl>
             <Textarea 
-              placeholder="Describe your property" 
-              className="min-h-[150px]"
+              placeholder="Describe your property in detail..." 
+              className="min-h-[150px] resize-y"
               {...field} 
             />
           </FormControl>
