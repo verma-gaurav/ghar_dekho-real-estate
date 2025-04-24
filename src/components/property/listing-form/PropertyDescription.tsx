@@ -6,6 +6,7 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -19,6 +20,9 @@ export const PropertyDescription = () => {
       render={({ field }) => (
         <FormItem>
           <FormLabel>Description</FormLabel>
+          <FormDescription>
+            Provide a detailed description of your property. Highlight unique features, location benefits, etc.
+          </FormDescription>
           <FormControl>
             <Textarea 
               placeholder="Describe your property" 
