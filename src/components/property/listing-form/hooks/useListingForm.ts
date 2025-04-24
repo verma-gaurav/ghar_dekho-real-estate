@@ -1,9 +1,10 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ListingFormValues } from "../types";
 import { formSchema } from "../schema";
-import { PropertyPurpose } from "@/types";
+import { PropertyPurpose, PropertyType } from "@/types"; // Added PropertyType import here
 
 export const useListingForm = (defaultPurpose?: PropertyPurpose) => {
   const [currentStep, setCurrentStep] = useState(1);

@@ -1,5 +1,5 @@
 
-import { PropertyPurpose, PropertyType, ResidentialType, CommercialType, UserType } from "@/types";
+import { PropertyPurpose, PropertyType, ResidentialType, CommercialType, UserType, PropertyAge, FurnishingStatus, PropertyFacing, ParkingType } from "@/types";
 
 export interface ListingFormValues {
   title: string;
@@ -21,13 +21,13 @@ export interface ListingFormValues {
     plotArea?: string;
     builtUpArea?: string;
     carpetArea?: string;
-    furnishing: "furnished" | "semi-furnished" | "unfurnished";
+    furnishing: FurnishingStatus;
     furnishingDetails?: Record<string, number | boolean>;
     totalFloors?: string;
     floorNumber?: string;
-    age?: "0-1" | "1-5" | "5-10" | "10+" | "new-launch";
-    facing?: "east" | "west" | "north" | "south" | "northeast" | "northwest" | "southeast" | "southwest";
-    parking?: "covered" | "open" | "both" | "none";
+    age?: PropertyAge;
+    facing?: PropertyFacing;
+    parking?: ParkingType;
     parkingSpots?: string;
   };
   price: string;
@@ -58,4 +58,3 @@ export interface StepProps {
   onNext: () => void;
   onPrev: () => void;
 }
-

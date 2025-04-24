@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { addProperty } from "@/services/propertyService";
 import { toast } from "@/hooks/use-toast";
 import { ListingFormValues } from "../types";
-import { ResidentialType, CommercialType, UserType } from "@/types";
+import { ResidentialType, CommercialType, UserType, PropertyAge } from "@/types";
 
 export const useListingSubmit = () => {
   const navigate = useNavigate();
@@ -42,7 +42,6 @@ export const useListingSubmit = () => {
         description: data.description,
         location: data.location,
         details: {
-          ...data.details,
           bedrooms: data.details.bedrooms ? Number(data.details.bedrooms) : undefined,
           bathrooms: data.details.bathrooms ? Number(data.details.bathrooms) : undefined,
           balconies: data.details.balconies ? Number(data.details.balconies) : undefined,
@@ -52,6 +51,12 @@ export const useListingSubmit = () => {
           totalFloors: data.details.totalFloors ? Number(data.details.totalFloors) : undefined,
           floorNumber: data.details.floorNumber ? Number(data.details.floorNumber) : undefined,
           parkingSpots: data.details.parkingSpots ? Number(data.details.parkingSpots) : undefined,
+          furnishing: data.details.furnishing,
+          furnishingDetails: data.details.furnishingDetails,
+          // Make sure age is always defined with a default value
+          age: (data.details.age || "0-1") as PropertyAge,
+          facing: data.details.facing,
+          parking: data.details.parking,
         },
         images: data.images || [],
         video: data.video,
