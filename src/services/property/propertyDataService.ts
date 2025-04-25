@@ -1,6 +1,5 @@
-
 import { Property } from "@/types";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 
 export function fromDbProperty(row: Database['public']['Tables']['properties']['Row']): Property {
   return {
@@ -24,7 +23,8 @@ export function fromDbProperty(row: Database['public']['Tables']['properties']['
     updatedAt: row.updated_at,
     propertyScore: row.property_score,
     views: row.views,
-    audioDescription: undefined
+    audioDescription: undefined,
+    verification_status: row.verification_status ?? false
   };
 }
 
@@ -42,14 +42,15 @@ export function toDbPropertyInput(p: Partial<Omit<Property, "id" | "createdAt" |
     amenities: p.amenities ?? [],
     description: p.description!,
     images: p.images ?? [],
-    videos: [],
+    videos: p.video ? [p.video] : [],
     available_from: p.availability,
     posted_by: p.postedBy!,
-    features: p.termsAndConditions as any,
+    features: p.termsAndConditions as Json,
     created_at: undefined,
     updated_at: undefined,
     property_score: p.propertyScore,
-    views: p.views
+    views: p.views,
+    verification_status: p.verification_status !== undefined ? p.verification_status : false
   }
 }
 

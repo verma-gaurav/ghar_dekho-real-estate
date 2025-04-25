@@ -1,4 +1,3 @@
-
 import { useFormContext } from "react-hook-form";
 import {
   FormField,
@@ -9,195 +8,330 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Star, X, Upload, Plus } from "lucide-react";
+import { ListingFormValues } from "../types";
+import { getSafeImageUrl, isValidFileSize } from "@/utils/imageUtils";
 import { useState } from "react";
-import { Image, Video, Upload, Trash2 } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 
 export const StepMediaUpload = () => {
-  const form = useFormContext();
-  const [selectedImages, setSelectedImages] = useState<string[]>(form.getValues('images') || []);
-  const [coverImageIndex, setCoverImageIndex] = useState<number>(form.getValues('coverImageIndex') || 0);
+  const { control, setValue, watch, formState: { errors } } = useFormContext<ListingFormValues>();
+  const images = watch("images") || [];
+  const coverImageIndex = watch("coverImageIndex") || 0;
+  const [imageUrl, setImageUrl] = useState("");
+  const [dragOver, setDragOver] = useState(false);
 
-  // Function to handle image uploads
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const newImages: string[] = [];
+  const addImageUrl = () => {
+    if (!imageUrl || imageUrl.trim() === "") return;
+    
+    // Only add if it's a valid URL
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      setValue("images", [...images, imageUrl], { shouldValidate: true });
       
-      Array.from(e.target.files).forEach(file => {
-        // In a real implementation, you'd upload these to a storage service
-        // For now, we'll just create object URLs for preview
-        const imageUrl = URL.createObjectURL(file);
-        newImages.push(imageUrl);
+      // Set first image as cover if no images were previously uploaded
+      if (images.length === 0) {
+        setValue("coverImageIndex", 0);
+      }
+      
+      // Clear the input
+      setImageUrl("");
+    }
+  };
+
+  // Convert file to base64 string
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    try {
+      // Filter out files that are too large
+      const validFiles = Array.from(files).filter(file => {
+        const isValid = isValidFileSize(file, 5); // 5MB limit
+        if (!isValid) {
+          toast(`File ${file.name} is too large (max 5MB)`, {
+            description: "Please compress your image or choose a smaller one.",
+          });
+        }
+        return isValid;
       });
       
-      const updatedImages = [...selectedImages, ...newImages];
-      setSelectedImages(updatedImages);
-      form.setValue('images', updatedImages, { shouldValidate: true });
+      if (validFiles.length === 0) return;
       
-      // If this is the first image, make it the cover image
-      if (selectedImages.length === 0 && newImages.length > 0) {
-        setCoverImageIndex(0);
-        form.setValue('coverImageIndex', 0, { shouldValidate: true });
+      const filePromises = validFiles.map(file => fileToBase64(file));
+      const base64Images = await Promise.all(filePromises);
+      
+      setValue("images", [...images, ...base64Images], { shouldValidate: true });
+      
+      // Set first image as cover if no images were previously uploaded
+      if (images.length === 0 && base64Images.length > 0) {
+        setValue("coverImageIndex", 0);
       }
+      
+      // Reset the input value to allow selecting the same files again
+      e.target.value = "";
+    } catch (error) {
+      console.error("Error processing image files:", error);
+      toast("Error processing images", {
+        description: "Some images could not be processed. Please try again with different images.",
+      });
     }
   };
-
-  // Function to remove an image
-  const removeImage = (index: number) => {
-    const updatedImages = selectedImages.filter((_, i) => i !== index);
-    setSelectedImages(updatedImages);
-    form.setValue('images', updatedImages, { shouldValidate: true });
+  
+  // Handle drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+  
+  const handleDragLeave = () => {
+    setDragOver(false);
+  };
+  
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
     
-    // Adjust cover image index if needed
-    if (coverImageIndex === index) {
-      const newCoverIndex = updatedImages.length > 0 ? 0 : -1;
-      setCoverImageIndex(newCoverIndex);
-      form.setValue('coverImageIndex', newCoverIndex, { shouldValidate: true });
-    } else if (coverImageIndex > index) {
-      setCoverImageIndex(coverImageIndex - 1);
-      form.setValue('coverImageIndex', coverImageIndex - 1, { shouldValidate: true });
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    
+    try {
+      // Filter files: only images and size limit
+      const validFiles = Array.from(files)
+        .filter(file => file.type.startsWith('image/'))
+        .filter(file => {
+          const isValid = isValidFileSize(file, 5); // 5MB limit
+          if (!isValid) {
+            toast(`File ${file.name} is too large (max 5MB)`, {
+              description: "Please compress your image or choose a smaller one.",
+            });
+          }
+          return isValid;
+        });
+      
+      if (validFiles.length === 0) return;
+      
+      const filePromises = validFiles.map(file => fileToBase64(file));
+      const base64Images = await Promise.all(filePromises);
+      
+      setValue("images", [...images, ...base64Images], { shouldValidate: true });
+      
+      // Set first image as cover if no images were previously uploaded
+      if (images.length === 0 && base64Images.length > 0) {
+        setValue("coverImageIndex", 0);
+      }
+    } catch (error) {
+      console.error("Error processing dropped image files:", error);
+      toast("Error processing images", {
+        description: "Some images could not be processed. Please try again with different images.",
+      });
     }
   };
 
-  // Function to set cover image
+  const removeImage = (index: number) => {
+    const newImages = [...images];
+    newImages.splice(index, 1);
+    setValue("images", newImages, { shouldValidate: true });
+    
+    // Update coverImageIndex if necessary
+    if (coverImageIndex === index) {
+      setValue("coverImageIndex", newImages.length > 0 ? 0 : 0);
+    } else if (coverImageIndex > index) {
+      setValue("coverImageIndex", coverImageIndex - 1);
+    }
+  };
+
   const setCoverImage = (index: number) => {
-    setCoverImageIndex(index);
-    form.setValue('coverImageIndex', index, { shouldValidate: true });
+    setValue("coverImageIndex", index);
   };
 
   return (
     <div className="space-y-6">
-      <div className="text-xl font-semibold">Step 4: Media Upload</div>
-      
-      {/* Photo Upload Section */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium">Property Photos</h3>
-        <FormDescription>
-          Upload photos of your property. The first image will be used as the cover photo.
-        </FormDescription>
-        
-        <div className="flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 space-y-4">
-          <div className="flex flex-col items-center justify-center">
-            <Image className="h-10 w-10 text-muted-foreground" />
+      <div className="space-y-2">
+        <h3 className="text-lg font-medium">Upload Media</h3>
             <p className="text-sm text-muted-foreground">
-              Upload property photos (JPEG, PNG, WebP)
+          Add photos and videos to showcase your property
             </p>
           </div>
           
+      {/* Direct URL input */}
+      <FormField
+        control={control}
+        name="images"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Add Image URL</FormLabel>
+            <FormDescription>
+              Enter direct URLs to property images (must start with http:// or https://)
+            </FormDescription>
+            <div className="flex gap-2">
           <Input
-            type="file"
-            accept="image/*"
-            multiple
-            id="property-photos"
-            className="hidden"
-            onChange={handleImageUpload}
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://example.com/image.jpg"
+                className="flex-1"
           />
           <Button 
-            variant="outline" 
-            onClick={() => document.getElementById('property-photos')?.click()}
+                type="button" 
+                onClick={addImageUrl}
+                disabled={!imageUrl || !imageUrl.startsWith('http')}
           >
-            <Upload className="mr-2 h-4 w-4" />
-            Choose Photos
+                <Plus className="h-4 w-4 mr-2" />
+                Add URL
           </Button>
         </div>
-        
-        {/* Image Preview Section */}
-        {selectedImages.length > 0 && (
-          <div className="space-y-4">
-            <h4 className="font-medium">Selected Images</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {selectedImages.map((image, index) => (
-                <div 
-                  key={index} 
-                  className={`relative rounded-lg overflow-hidden border-2 ${coverImageIndex === index ? 'border-primary' : 'border-transparent'}`}
-                >
-                  <img 
-                    src={image} 
-                    alt={`Property ${index + 1}`} 
-                    className="w-full h-32 object-cover"
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {/* File upload area */}
+      <FormField
+        control={control}
+        name="images"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Upload Images from Device</FormLabel>
+            <FormControl>
+              <div
+                className={`border-2 border-dashed rounded-lg p-6 text-center ${
+                  dragOver ? "border-primary bg-primary/10" : "border-input"
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <div className="flex flex-col items-center">
+                  <Upload className="h-10 w-10 text-muted-foreground mb-4" />
+                  <p className="mb-2 text-sm font-semibold">
+                    Drag and drop images here, or click to browse
+                  </p>
+                  <p className="mb-4 text-xs text-muted-foreground">
+                    Supported formats: JPG, PNG, WEBP (max 5MB each)
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => document.getElementById("image-upload")?.click()}
+                  >
+                    Upload Images
+                  </Button>
+                  <input
+                    id="image-upload"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handleFileUpload}
                   />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex flex-col items-center justify-center space-y-2">
+                </div>
+              </div>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {/* Display uploaded images */}
+      {images.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium mb-3">Uploaded Images</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {images.map((image, index) => (
+              <Card key={index} className="relative overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="relative aspect-video w-full">
+                    <img
+                      src={image}
+                      alt={`Property image ${index + 1}`}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                    {index === coverImageIndex && (
+                      <Badge
+                        variant="secondary"
+                        className="absolute top-2 left-2 z-10"
+                      >
+                        Cover
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    {index !== coverImageIndex && (
                     <Button 
+                        type="button"
+                        size="icon"
                       variant="secondary" 
-                      size="sm"
+                        className="h-6 w-6"
                       onClick={() => setCoverImage(index)}
-                      disabled={coverImageIndex === index}
                     >
-                      Set as Cover
+                        <Star className="h-3 w-3" />
                     </Button>
+                    )}
                     <Button 
+                      type="button"
+                      size="icon"
                       variant="destructive" 
-                      size="sm"
+                      className="h-6 w-6"
                       onClick={() => removeImage(index)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <X className="h-3 w-3" />
                     </Button>
                   </div>
-                  {coverImageIndex === index && (
-                    <div className="absolute top-2 left-2 bg-primary text-white text-xs px-2 py-1 rounded">
-                      Cover
-                    </div>
-                  )}
-                </div>
+                </CardContent>
+              </Card>
               ))}
             </div>
           </div>
         )}
-      </div>
-      
-      {/* Video Upload Section */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium">Property Video</h3>
         
         <FormField
-          control={form.control}
+        control={control}
           name="video"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Video URL</FormLabel>
-              <FormDescription>
-                Add a YouTube, Vimeo, or other video URL to showcase your property.
-              </FormDescription>
+            <FormLabel>Property Video (Optional)</FormLabel>
               <FormControl>
-                <div className="relative">
-                  <Video className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    className="pl-8"
-                    placeholder="e.g., https://youtube.com/watch?v=XXXX" 
                     {...field}
+                type="url"
+                placeholder="Paste YouTube or Vimeo URL"
                   />
-                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-      </div>
-      
-      {/* Audio Description Section */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium">Audio Description</h3>
         
         <FormField
-          control={form.control}
+        control={control}
           name="audioDescription"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Audio Description URL</FormLabel>
-              <FormDescription>
-                Add an audio narration to describe your property (optional).
-              </FormDescription>
+            <FormLabel>Audio Description (Optional)</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="Audio file URL" 
+              <Textarea
                   {...field} 
+                placeholder="Describe your property in your own words"
+                className="min-h-[100px]"
                 />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-      </div>
     </div>
   );
 };

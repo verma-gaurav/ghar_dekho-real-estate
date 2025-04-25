@@ -1,5 +1,4 @@
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,74 +11,45 @@ import { PropertyHeader } from "@/components/property/PropertyHeader";
 import { PropertyActions } from "@/components/property/PropertyActions";
 import { PropertyDetails } from "@/components/property/PropertyDetails";
 import { getPropertyById } from "@/services/propertyService";
-import { toggleSavedProperty, getSavedProperties } from "@/services/userService";
 import { User } from "lucide-react";
 
 export default function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   
   const [property, setProperty] = useState<Property | undefined>(undefined);
   const [loading, setLoading] = useState(true);
-  const [isSaved, setIsSaved] = useState(false);
+  const [fetchedPropertyId, setFetchedPropertyId] = useState<string | null>(null);
   
-  useEffect(() => {
+  // Memoize the fetchPropertyDetails function to avoid recreating it on every render
+  const fetchPropertyDetails = useCallback(async () => {
     if (!id) return;
-
-    const fetchPropertyDetails = async () => {
-      try {
-        setLoading(true);
-        const fetchedProperty = await getPropertyById(id);
-        setProperty(fetchedProperty);
-        
-        if (user) {
-          const savedProperties = await getSavedProperties(user.id);
-          setIsSaved(savedProperties.some(p => p.id === id));
-        }
-      } catch (error) {
-        console.error("Error fetching property:", error);
-        toast("Error", {
-          description: "Could not load property details."
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchPropertyDetails();
-  }, [id, user]);
-
-  const handleSaveProperty = async () => {
-    if (!property || !user) return;
     
     try {
-      const saved = await toggleSavedProperty(user.id, property.id);
-      setIsSaved(saved);
+      setLoading(true);
       
-      if (saved) {
-        toast("Property Saved", {
-          description: "This property has been added to your saved properties."
-        });
-      } else {
-        toast("Property Removed", {
-          description: "This property has been removed from your saved properties."
-        });
+      // Only fetch property data if it's not already fetched or if the ID has changed
+      if (id !== fetchedPropertyId) {
+        console.log(`Fetching property details for ID: ${id}`);
+        const fetchedProperty = await getPropertyById(id);
+        setProperty(fetchedProperty);
+        setFetchedPropertyId(id);
       }
     } catch (error) {
-      console.error("Error saving property:", error);
+      console.error("Error fetching property:", error);
       toast("Error", {
-        description: "Could not save this property. Please try again."
+        description: "Could not load property details."
       });
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [id, fetchedPropertyId]);
+  
+  useEffect(() => {
+    fetchPropertyDetails();
+  }, [fetchPropertyDetails]);
 
-  const handleContactOwner = () => {
-    toast("Contact Request Sent", {
-      description: "The property owner will get back to you soon."
-    });
-  };
-
-  if (loading) {
+  if (loading && !property) {
     return <PropertyDetailSkeleton />;
   }
 
@@ -96,67 +66,40 @@ export default function PropertyDetail() {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="container py-6 md:py-12">
-        <div className="mb-6">
-          <Button variant="outline" asChild>
-            <Link to="/" className="flex items-center">
-              <span className="mr-2">←</span> Back to Listings
-            </Link>
-          </Button>
-        </div>
-
-        <div className="mb-8">
-          <PropertyHeader property={property} />
-        </div>
-
-        <div className="mb-8">
+    <div className="container pb-12">
+      <PropertyHeader property={property} />
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
+        <div className="lg:col-span-2">
           <PropertyImages images={property.images} />
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <div className="md:col-span-2">
-            <Card className="mb-6">
-              <CardHeader className="pb-2">
-                <CardTitle>About this property</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">{property.description}</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <PropertyDetails property={property} />
-              </CardContent>
-            </Card>
-          </div>
-
-          <div>
-            <Card>
+          
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="text-xl">Property Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PropertyDetails property={property} />
+            </CardContent>
+          </Card>
+          
+          {property.description && (
+            <Card className="mt-8">
               <CardHeader>
-                <CardTitle>Contact {property.postedBy.name}</CardTitle>
+                <CardTitle className="text-xl">Description</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="mb-6 flex items-center gap-3">
-                  <div className="w-12 h-12 bg-estate-100 rounded-full flex items-center justify-center">
-                    <User className="h-6 w-6 text-estate-500" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{property.postedBy.name}</p>
-                    <p className="text-sm text-muted-foreground capitalize">{property.postedBy.type}</p>
-                  </div>
-                </div>
-                
-                <PropertyActions 
-                  property={property}
-                  isSaved={isSaved}
-                  onSave={handleSaveProperty}
-                  onContact={handleContactOwner}
-                />
+                <div className="whitespace-pre-line">{property.description}</div>
               </CardContent>
             </Card>
-          </div>
+          )}
+        </div>
+        
+        <div>
+          <Card>
+            <CardContent className="pt-6">
+              <PropertyActions property={property} />
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

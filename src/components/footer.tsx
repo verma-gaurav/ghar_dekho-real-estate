@@ -1,5 +1,4 @@
-
-import { Building, Facebook, Instagram, Twitter, Mail, Phone } from "lucide-react";
+import { Building, Facebook, Instagram, Twitter, Mail, Phone, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
@@ -114,7 +113,11 @@ export function Footer() {
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Phone className="h-4 w-4 text-estate-400" />
-                <span>+1 (888) 123-4567</span>
+                <span>+91-8824351636</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <MapPin className="h-4 w-4 text-estate-400" />
+                <span>Pili kothi, Behind Utsav Hotel, Rani Bazar, Bikaner</span>
               </div>
             </div>
           </div>

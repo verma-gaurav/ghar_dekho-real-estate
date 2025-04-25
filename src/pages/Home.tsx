@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { getAllProperties, filterProperties } from "@/services/propertyService";
 import { useState as useReactState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { testSupabaseConnection, checkUsersTable } from "@/utils/supabaseUtils";
 
 export default function Home() {
   const location = useLocation();
@@ -26,6 +27,16 @@ export default function Home() {
     queryKey: ['properties'],
     queryFn: getAllProperties
   });
+
+  // Run Supabase connection test on component mount, but only log to console
+  useEffect(() => {
+    async function runTests() {
+      await testSupabaseConnection();
+      await checkUsersTable();
+    }
+    
+    runTests();
+  }, []);
 
   useEffect(() => {
     const path = location.pathname.split("/")[1];
@@ -317,6 +328,89 @@ export default function Home() {
         </div>
       </section>
 
+    
+      
+    
+
+      <section className="py-12 bg-gray-50">
+        <div className="container">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-2xl md:text-3xl font-bold">
+              {activeTab === "all" 
+                ? "All Properties" 
+                : activeTab === "buy" 
+                  ? "Properties for Sale" 
+                  : activeTab === "rent" 
+                    ? "Properties for Rent" 
+                    : activeTab === "pg" 
+                      ? "PG Accommodations" 
+                      : "Commercial Properties"}
+            </h2>
+            <div className="hidden md:flex items-center">
+              <Button variant="outline" asChild className="mr-2">
+                <Link to="/list-property">Post Property</Link>
+              </Button>
+              <Button variant="outline" className="gap-2" onClick={() => setAdvancedFiltersOpen(true)}>
+                <Filter className="h-4 w-4" /> Filters
+              </Button>
+            </div>
+          </div>
+          
+          {isLoading ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, index) => (
+                <div key={index} className="bg-white p-4 rounded-lg shadow-sm h-80 animate-pulse">
+                  <div className="bg-gray-200 h-40 rounded-md mb-4"></div>
+                  <div className="bg-gray-200 h-6 rounded-md w-3/4 mb-2"></div>
+                  <div className="bg-gray-200 h-4 rounded-md w-1/2 mb-2"></div>
+                  <div className="bg-gray-200 h-4 rounded-md w-2/3"></div>
+                </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="text-center py-12">
+              <div className="text-5xl mb-4">⚠️</div>
+              <h3 className="text-xl font-semibold mb-2">Error Loading Properties</h3>
+              <p className="text-muted-foreground mb-6">
+                There was a problem loading properties. Please try again later.
+              </p>
+              <Button onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-2 gap-6">
+                {filteredProperties.length > 0 ? (
+                  filteredProperties.slice(0, 6).map((property) => (
+                    <PropertyCard key={property.id} property={property} />
+                  ))
+                ) : (
+                  <div className="col-span-3 text-center py-12">
+                    <div className="text-5xl mb-4">😔</div>
+                    <h3 className="text-xl font-semibold mb-2">No Properties Found</h3>
+                    <p className="text-muted-foreground mb-6">Try adjusting your search filters to find more properties.</p>
+                    <Button onClick={() => {
+                      setSearchQuery("");
+                      filterByTab(activeTab);
+                    }}>
+                      Reset Filters
+                    </Button>
+                  </div>
+                )}
+              </div>
+              
+              {filteredProperties.length > 6 && (
+                <div className="text-center mt-8">
+                  <Button variant="outline" className="group" onClick={() => setShowAdvancedFilters(true)}>
+                    View All Properties 
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </section>
+
       <section className="py-12 bg-white">
         <div className="container">
           <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">
@@ -368,99 +462,6 @@ export default function Home() {
               <span className="font-medium">Commercial</span>
             </Button>
           </div>
-        </div>
-      </section>
-      
-      <section className="py-10 bg-estate-100">
-        <div className="container">
-          <div className="flex flex-col md:flex-row md:items-center justify-between">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold mb-2">List Your Property Today</h2>
-              <p className="text-muted-foreground">Reach thousands of potential buyers and tenants for free</p>
-            </div>
-            <Button asChild className="mt-4 md:mt-0">
-              <Link to="/list-property">Post Property <ArrowRight className="ml-2 h-4 w-4" /></Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      <section className="py-12 bg-gray-50">
-        <div className="container">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold">
-              {activeTab === "all" 
-                ? "Featured Properties" 
-                : activeTab === "buy" 
-                  ? "Properties for Sale" 
-                  : activeTab === "rent" 
-                    ? "Properties for Rent" 
-                    : activeTab === "pg" 
-                      ? "PG Accommodations" 
-                      : "Commercial Properties"}
-            </h2>
-            <div className="hidden md:flex items-center">
-              <Button variant="outline" asChild className="mr-2">
-                <Link to="/list-property">Post Property</Link>
-              </Button>
-              <Button variant="outline" className="gap-2" onClick={() => setAdvancedFiltersOpen(true)}>
-                <Filter className="h-4 w-4" /> Filters
-              </Button>
-            </div>
-          </div>
-          
-          {isLoading ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, index) => (
-                <div key={index} className="bg-white p-4 rounded-lg shadow-sm h-80 animate-pulse">
-                  <div className="bg-gray-200 h-40 rounded-md mb-4"></div>
-                  <div className="bg-gray-200 h-6 rounded-md w-3/4 mb-2"></div>
-                  <div className="bg-gray-200 h-4 rounded-md w-1/2 mb-2"></div>
-                  <div className="bg-gray-200 h-4 rounded-md w-2/3"></div>
-                </div>
-              ))}
-            </div>
-          ) : error ? (
-            <div className="text-center py-12">
-              <div className="text-5xl mb-4">⚠️</div>
-              <h3 className="text-xl font-semibold mb-2">Error Loading Properties</h3>
-              <p className="text-muted-foreground mb-6">
-                There was a problem loading properties. Please try again later.
-              </p>
-              <Button onClick={() => window.location.reload()}>Retry</Button>
-            </div>
-          ) : (
-            <>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProperties.length > 0 ? (
-                  filteredProperties.slice(0, 6).map((property) => (
-                    <PropertyCard key={property.id} property={property} />
-                  ))
-                ) : (
-                  <div className="col-span-3 text-center py-12">
-                    <div className="text-5xl mb-4">😔</div>
-                    <h3 className="text-xl font-semibold mb-2">No Properties Found</h3>
-                    <p className="text-muted-foreground mb-6">Try adjusting your search filters to find more properties.</p>
-                    <Button onClick={() => {
-                      setSearchQuery("");
-                      filterByTab(activeTab);
-                    }}>
-                      Reset Filters
-                    </Button>
-                  </div>
-                )}
-              </div>
-              
-              {filteredProperties.length > 6 && (
-                <div className="text-center mt-8">
-                  <Button variant="outline" className="group" onClick={() => setShowAdvancedFilters(true)}>
-                    View All Properties 
-                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
         </div>
       </section>
 

@@ -1,14 +1,17 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ListingFormValues } from "../types";
 import { formSchema } from "../schema";
-import { PropertyPurpose, PropertyType } from "@/types"; // Added PropertyType import here
+import { PropertyPurpose, PropertyType } from "@/types";
+import { getPropertyById } from "@/services/propertyService";
+import { toast } from "@/components/ui/sonner";
 
-export const useListingForm = (defaultPurpose?: PropertyPurpose) => {
+export const useListingForm = (defaultPurpose?: PropertyPurpose, propertyId?: string) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [propertyScore, setPropertyScore] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(!!propertyId);
 
   const form = useForm<ListingFormValues>({
     resolver: zodResolver(formSchema),
@@ -64,6 +67,72 @@ export const useListingForm = (defaultPurpose?: PropertyPurpose) => {
       noticePeriod: "1",
     }
   });
+
+  // Fetch property data if in edit mode
+  useEffect(() => {
+    const fetchPropertyData = async () => {
+      if (propertyId) {
+        try {
+          setIsLoading(true);
+          const property = await getPropertyById(propertyId);
+          
+          // Convert property data to form values
+          form.reset({
+            title: property.title,
+            purpose: property.purpose,
+            type: property.type,
+            subType: property.subType,
+            location: {
+              city: property.location.city,
+              locality: property.location.locality,
+              subLocality: property.location.subLocality || '',
+              society: property.location.society || '',
+              address: property.location.address,
+              pincode: property.location.pincode,
+            },
+            details: {
+              bedrooms: property.details.bedrooms?.toString() || '',
+              bathrooms: property.details.bathrooms?.toString() || '',
+              balconies: property.details.balconies?.toString() || '',
+              plotArea: property.details.plotArea?.toString() || '',
+              builtUpArea: property.details.builtUpArea?.toString() || '',
+              carpetArea: property.details.carpetArea?.toString() || '',
+              furnishing: property.details.furnishing,
+              furnishingDetails: property.details.furnishingDetails || {},
+              totalFloors: property.details.totalFloors?.toString() || '',
+              floorNumber: property.details.floorNumber?.toString() || '',
+              age: property.details.age,
+              facing: property.details.facing || 'east',
+              parking: property.details.parking,
+              parkingSpots: property.details.parkingSpots?.toString() || '',
+            },
+            price: property.price.toString(),
+            securityDeposit: property.securityDeposit?.toString() || '',
+            description: property.description,
+            availability: property.availability || new Date().toISOString().split('T')[0],
+            images: property.images || [],
+            video: property.video || '',
+            audioDescription: property.audioDescription || '',
+            amenities: property.amenities || [],
+            agreementDuration: property.termsAndConditions?.agreementDuration?.toString() || '12',
+            noticePeriod: property.termsAndConditions?.noticePeriod?.toString() || '1',
+            brokerAllowed: property.termsAndConditions?.brokerAllowed !== undefined 
+              ? property.termsAndConditions.brokerAllowed 
+              : true,
+          });
+          
+          calculatePropertyScore();
+        } catch (error) {
+          console.error('Error fetching property data:', error);
+          toast("Failed to load property data for editing");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    fetchPropertyData();
+  }, [propertyId, form]);
 
   const calculatePropertyScore = () => {
     let score = 0;
@@ -151,5 +220,7 @@ export const useListingForm = (defaultPurpose?: PropertyPurpose) => {
     propertyScore,
     handleNextStep,
     handlePrevStep,
+    isLoading,
+    isEditMode
   };
 };

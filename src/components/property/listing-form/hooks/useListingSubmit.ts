@@ -1,18 +1,18 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { addProperty } from "@/services/propertyService";
+import { addProperty, updateProperty } from "@/services/propertyService";
 import { toast } from "@/components/ui/sonner";
 import { ListingFormValues } from "../types";
 import { ResidentialType, CommercialType, UserType, PropertyAge } from "@/types";
 
-export const useListingSubmit = () => {
+export const useListingSubmit = (propertyId?: string) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submittedPropertyId, setSubmittedPropertyId] = useState<string | null>(null);
+  const [submittedPropertyId, setSubmittedPropertyId] = useState<string | null>(propertyId || null);
   const [showThankYouDialog, setShowThankYouDialog] = useState(false);
+  const isEditMode = !!propertyId;
 
   const handleSubmit = async (data: ListingFormValues) => {
     if (!user) {
@@ -31,6 +31,20 @@ export const useListingSubmit = () => {
       } else {
         typedSubType = data.subType as CommercialType;
       }
+
+      // Ensure proper JSON structure for nested objects
+      const postedBy = {
+        id: user.id,
+        type: user.type as UserType,
+        name: user.name,
+        contactInfo: {
+          email: user.email,
+          phone: user.phone,
+        }
+      };
+
+      // Use image URLs directly - no need to upload them
+      const imageUrls = data.images || [];
 
       const propertyData = {
         title: data.title,
@@ -58,7 +72,7 @@ export const useListingSubmit = () => {
           facing: data.details.facing,
           parking: data.details.parking,
         },
-        images: data.images || [],
+        images: imageUrls, // Use image URLs directly
         video: data.video,
         audioDescription: data.audioDescription,
         availability: data.availability || new Date().toISOString().split('T')[0],
@@ -68,25 +82,35 @@ export const useListingSubmit = () => {
           noticePeriod: data.noticePeriod ? Number(data.noticePeriod) : undefined,
           brokerAllowed: data.brokerAllowed,
         },
-        postedBy: {
-          id: user.id,
-          type: user.type as UserType,
-          name: user.name,
-          contactInfo: {
-            email: user.email,
-            phone: user.phone,
-          },
-        },
+        postedBy
       };
 
-      const newProperty = await addProperty(propertyData);
-      setSubmittedPropertyId(newProperty.id);
+      console.log(isEditMode ? "Updating property data:" : "Submitting property data:", JSON.stringify(propertyData));
+      
+      let updatedProperty;
+      if (isEditMode && propertyId) {
+        // Update existing property
+        updatedProperty = await updateProperty(propertyId, propertyData);
+        toast("Success", {
+          description: "Property updated successfully!",
+        });
+      } else {
+        // Create new property
+        updatedProperty = await addProperty(propertyData);
+        toast("Success", {
+          description: "Property listed successfully!",
+        });
+      }
+      
+      setSubmittedPropertyId(updatedProperty.id);
       setShowThankYouDialog(true);
       
     } catch (error) {
-      console.error("Error listing property:", error);
+      console.error(isEditMode ? "Error updating property:" : "Error listing property:", error);
       toast("Error", {
-        description: "Failed to list property. Please try again.",
+        description: isEditMode 
+          ? "Failed to update property. Please try again."
+          : "Failed to list property. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -102,7 +126,7 @@ export const useListingSubmit = () => {
 
   const handleReturnHome = () => {
     setShowThankYouDialog(false);
-    navigate('/');
+    navigate('/my-properties');
   };
 
   return { 
@@ -110,6 +134,7 @@ export const useListingSubmit = () => {
     isSubmitting, 
     showThankYouDialog, 
     handleViewProperty, 
-    handleReturnHome 
+    handleReturnHome,
+    isEditMode
   };
 };

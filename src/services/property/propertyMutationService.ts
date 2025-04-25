@@ -20,7 +20,8 @@ export const addProperty = async (propertyData: Omit<Property, "id" | "createdAt
     createdAt: now,
     updatedAt: now,
     propertyScore,
-    views: 0
+    views: 0,
+    verification_status: false
   };
 
   const propertyInsert: Database['public']['Tables']['properties']['Insert'] = {
@@ -28,7 +29,8 @@ export const addProperty = async (propertyData: Omit<Property, "id" | "createdAt
       ...propertyData,
       id,
       propertyScore,
-      views: 0
+      views: 0,
+      verification_status: false
     }),
     created_at: now,
     updated_at: now
@@ -82,6 +84,95 @@ export const updateProperty = async (id: string, updates: Partial<Property>): Pr
     return fromDbProperty(data);
   } catch (error) {
     console.error(`Error updating property with ID ${id}:`, error);
+    throw error;
+  }
+};
+
+export const updatePropertyStatus = async (propertyId: string, status: string): Promise<void> => {
+  try {
+    const now = new Date().toISOString();
+    
+    const { error } = await supabase
+      .from('properties')
+      .update({
+        purpose: status,
+        updated_at: now
+      })
+      .eq('id', propertyId);
+      
+    if (error) throw error;
+  } catch (error) {
+    console.error(`Error updating status for property ${propertyId}:`, error);
+    throw error;
+  }
+};
+
+export const deleteProperty = async (propertyId: string): Promise<void> => {
+  try {
+    // First get the property to find the owner
+    const { data: propertyData, error: getError } = await supabase
+      .from('properties')
+      .select('posted_by')
+      .eq('id', propertyId)
+      .maybeSingle();
+      
+    if (getError) throw getError;
+    
+    if (propertyData && propertyData.posted_by) {
+      const postedBy = propertyData.posted_by as Property['postedBy'];
+      const userId = postedBy.id;
+      
+      // Get user's listed properties
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('listed_properties')
+        .eq('id', userId)
+        .maybeSingle();
+        
+      if (!userError && userData && userData.listed_properties) {
+        // Remove property ID from listed_properties
+        const updatedListedProperties = userData.listed_properties.filter(
+          (id: string) => id !== propertyId
+        );
+        
+        // Update user record
+        await supabase
+          .from('users')
+          .update({ 
+            listed_properties: updatedListedProperties 
+          } as any)
+          .eq('id', userId);
+      }
+    }
+    
+    // Delete the property
+    const { error } = await supabase
+      .from('properties')
+      .delete()
+      .eq('id', propertyId);
+      
+    if (error) throw error;
+  } catch (error) {
+    console.error(`Error deleting property ${propertyId}:`, error);
+    throw error;
+  }
+};
+
+export const updatePropertyVerification = async (propertyId: string, isVerified: boolean): Promise<void> => {
+  try {
+    const now = new Date().toISOString();
+    
+    const { error } = await supabase
+      .from('properties')
+      .update({
+        verification_status: isVerified,
+        updated_at: now
+      })
+      .eq('id', propertyId);
+      
+    if (error) throw error;
+  } catch (error) {
+    console.error(`Error updating verification status for property ${propertyId}:`, error);
     throw error;
   }
 };

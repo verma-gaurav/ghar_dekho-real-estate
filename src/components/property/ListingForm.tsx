@@ -1,4 +1,3 @@
-
 import { FormProvider } from "react-hook-form";
 import { PropertyPurpose } from "@/types";
 import { useListingForm } from "./listing-form/hooks/useListingForm";
@@ -15,16 +14,19 @@ import { CheckCircle } from "lucide-react";
 
 interface ListingFormProps {
   defaultPurpose?: PropertyPurpose;
+  propertyId?: string;
 }
 
-const ListingForm = ({ defaultPurpose }: ListingFormProps) => {
+const ListingForm = ({ defaultPurpose, propertyId }: ListingFormProps) => {
   const {
     form,
     currentStep,
     propertyScore,
     handleNextStep,
     handlePrevStep,
-  } = useListingForm(defaultPurpose);
+    isLoading,
+    isEditMode
+  } = useListingForm(defaultPurpose, propertyId);
   
   const { 
     handleSubmit, 
@@ -32,7 +34,7 @@ const ListingForm = ({ defaultPurpose }: ListingFormProps) => {
     showThankYouDialog, 
     handleViewProperty, 
     handleReturnHome 
-  } = useListingSubmit();
+  } = useListingSubmit(propertyId);
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -50,6 +52,19 @@ const ListingForm = ({ defaultPurpose }: ListingFormProps) => {
         return <StepBasicDetails />;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-8 bg-gray-200 rounded animate-pulse"></div>
+        <div className="space-y-4">
+          <div className="h-12 bg-gray-200 rounded animate-pulse"></div>
+          <div className="h-12 bg-gray-200 rounded animate-pulse"></div>
+          <div className="h-12 bg-gray-200 rounded animate-pulse"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <FormProvider {...form}>
@@ -78,7 +93,10 @@ const ListingForm = ({ defaultPurpose }: ListingFormProps) => {
               </Button>
             ) : (
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Submitting..." : "List Property"}
+                {isSubmitting ? 
+                  (isEditMode ? "Updating..." : "Submitting...") : 
+                  (isEditMode ? "Update Property" : "List Property")
+                }
               </Button>
             )}
           </div>
@@ -92,7 +110,10 @@ const ListingForm = ({ defaultPurpose }: ListingFormProps) => {
                 <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
                 <DialogTitle className="text-2xl">Thank You!</DialogTitle>
                 <DialogDescription className="mt-2 text-lg">
-                  Your property has been successfully listed.
+                  {isEditMode 
+                    ? "Your property has been successfully updated."
+                    : "Your property has been successfully listed."
+                  }
                 </DialogDescription>
               </div>
             </DialogHeader>

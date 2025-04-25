@@ -82,6 +82,7 @@ export type Database = {
           title: string
           type: string
           updated_at: string
+          verification_status: boolean | null
           videos: string[] | null
           views: number
         }
@@ -109,6 +110,7 @@ export type Database = {
           title: string
           type: string
           updated_at?: string
+          verification_status?: boolean | null
           videos?: string[] | null
           views?: number
         }
@@ -136,6 +138,7 @@ export type Database = {
           title?: string
           type?: string
           updated_at?: string
+          verification_status?: boolean | null
           videos?: string[] | null
           views?: number
         }

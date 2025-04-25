@@ -1,4 +1,3 @@
-
 // Property Types
 export type PropertyPurpose = "sell" | "rent" | "pg";
 export type PropertyType = "residential" | "commercial";
@@ -95,6 +94,7 @@ export interface Property {
   updatedAt: string;
   propertyScore: number;
   views: number;
+  verification_status?: boolean;
 }
 
 // User Interface
